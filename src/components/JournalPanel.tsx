@@ -36,7 +36,7 @@ const fromServer = (r: JournalRow): Row => ({
   source: r.source,
 });
 
-const fromLocal = (r: LocalJournalEntry): Row => ({ ...r });
+const fromLocal = (r: LocalJournalEntry): Row => ({ ...r, entryDelaySeconds: r.entryDelaySeconds ?? null, resultSource: r.resultSource ?? "UNVERIFIED" });
 
 export function JournalPanel(props: {
   me: MeResponse | null;
@@ -72,13 +72,13 @@ export function JournalPanel(props: {
   const measured = tradable.filter((r) => r.resultSource === "BROKER_MANUAL");
   const report = useMemo(() => summarize(measured.map((r) => ({ time: Date.parse(r.createdAt), outcome: r.outcome })), payout), [measured, payout]);
 
-  async function setOutcome(id: string, outcome: Outcome) {
+  async function setOutcome(row: Row, outcome: Outcome) {
     if (useServer) {
-      const r = await api(`/api/journal/${id}`, { method: "PATCH", json: { outcome, payoutPercent: payout * 100 } });
+      const r = await api(`/api/journal/${row.id}`, { method: "PATCH", json: { outcome, payoutPercent: payout * 100, entryDelaySeconds: row.entryDelaySeconds, resultSource: row.resultSource } });
       if (!r.ok) return setError(r.error);
       void load();
     } else {
-      onLocalChange(local.map((e) => (e.id === id ? { ...e, outcome } : e)));
+      onLocalChange(local.map((e) => (e.id === row.id ? { ...e, outcome } : e)));
     }
   }
 
@@ -172,7 +172,7 @@ export function JournalPanel(props: {
                         className="field py-1"
                         aria-label={`Outcome for ${r.pair} at ${fmtDateTime(r.createdAt)}`}
                         value={r.outcome}
-                        onChange={(e) => void setOutcome(r.id, e.target.value as Outcome)}
+                        onChange={(e) => void setOutcome(r, e.target.value as Outcome)}
                       >
                         <option value="UNRESOLVED">Unresolved</option>
                         <option value="WIN">Win</option>
