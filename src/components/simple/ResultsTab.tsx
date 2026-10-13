@@ -152,6 +152,10 @@ export function ResultsTab(props: {
       {busy && <p className="text-sm text-muted">Results check ho rahe hain…</p>}
       {msg && <p className="text-sm text-warn">{msg}</p>}
 
+      <p className="text-xs text-muted" data-testid="market-split">
+        LIVE: {tracked.filter((t) => t.marketType === "LIVE" && t.kind !== "SHADOW" && t.kind !== "MANUAL").length} signal · OTC: {tracked.filter((t) => t.marketType === "OTC").length} signal — OTC ka koi jaiz data feed nahi, is liye OTC par signal nahi diya jaata.
+      </p>
+
       <div className="glass-quiet p-4 text-sm" data-testid="shadow-compare">
         <h3 className="font-semibold">v2 vs v3 (shadow) — live muqabla</h3>
         <p className="mt-1 text-xs text-muted">
@@ -201,7 +205,11 @@ export function ResultsTab(props: {
                   {t.kind === "MANUAL" && <span className="ml-2 rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-muted">{t.label ?? "Generate"}</span>}
                 </p>
                 <p className="text-xs text-muted">
-                  {fmtTime(t.signalCandleTime + 60_000)} entry{t.entry ? `, ${fmtPrice(t.entry)} → ${fmtPrice(t.exit)}` : t.entryRef ? `, ~${fmtPrice(t.entryRef)}` : ""}
+                  {fmtTime(t.signalCandleTime + 60_000)} entry → {fmtTime(t.signalCandleTime + 120_000)} expiry
+                  {t.entry ? `, ${fmtPrice(t.entry)} → ${fmtPrice(t.exit)}` : t.entryRef ? `, ~${fmtPrice(t.entryRef)}` : ""}
+                </p>
+                <p className="text-[11px] text-faint">
+                  {t.marketType} · {t.provider} · {t.ruleVersion ?? t.mode} · signal {fmtTime(t.createdAt, true)}
                 </p>
               </div>
               <span

@@ -6,6 +6,7 @@ import type { BacktestResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
 import { fmtPct, fmtTime } from "@/lib/client/format";
 import { EquityLine } from "../Performance";
+import { HistoryPanel } from "./HistoryPanel";
 
 const PERIODS = [
   { label: "6 ghante", count: 360 },
@@ -43,6 +44,8 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
           {symbol ?? "Pair"} ke pichle data par yahi rules har minute chala kar dekhta hai ke kitne signal sahi hote. Har qadam par sirf us waqt tak ka data use hota hai.
         </p>
       </div>
+
+      <HistoryPanel />
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Period">
         {PERIODS.map((p) => (

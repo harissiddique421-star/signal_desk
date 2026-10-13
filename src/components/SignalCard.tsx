@@ -133,7 +133,7 @@ export function SignalCard({ result, now, loading }: { result: SignalResult | nu
               }}
             />
           </div>
-          <p className="mt-1.5 text-xs text-muted">Weighted bullish minus bearish evidence, −1 to +1. Not a probability of winning; not yet calibrated.</p>
+          <p className="mt-1.5 text-xs text-muted">Weighted bullish minus bearish evidence, −1 to +1. Not a probability of winning: on 3.87 M historical minutes it had no relationship to outcomes (docs/RESEARCH.md §9). v2 does not use it.</p>
         </div>
       )}
 
