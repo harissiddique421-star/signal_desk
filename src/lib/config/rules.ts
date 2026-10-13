@@ -6,6 +6,14 @@ import { z } from "zod";
  */
 export const RuleConfigSchema = z.object({
   version: z.string().default("rules-v1"),
+  /**
+   * TREND_V1  — original trend-following confluence (EMA, structure, MACD, RSI, 5m).
+   *             On 3.87 M historical minutes it won 48–49 % (95 % CI below 50 %): see docs/RESEARCH.md.
+   * FADE_V2   — exhaustion fade: a stretched, large, decisive candle closing outside the
+   *             Bollinger band with RSI at an extreme, traded AGAINST that candle.
+   *             Parameters were chosen on TRAIN data only and checked on VALIDATION/TEST.
+   */
+  strategy: z.enum(["TREND_V1", "FADE_V2"]).default("TREND_V1"),
   timeframeSeconds: z.literal(60).default(60),
   expirySeconds: z.literal(60).default(60),
 
@@ -59,6 +67,18 @@ export const RuleConfigSchema = z.object({
   minSupportingEvidence: z.number().int().min(1).max(20).default(4),
   /** Block the trade when no verified news/economic calendar is configured */
   requireNewsFilter: z.boolean().default(false),
+
+  // FADE_V2 parameters (chosen on TRAIN 2018-07..2019-06, see scripts/research/search_fade.py)
+  /** Bollinger %B beyond 1 + x (above) or below -x: the close is outside the band */
+  fadePercentBOutside: z.number().min(0).max(1).default(0),
+  /** Signal candle range at least this many ATRs */
+  fadeMinRangeAtr: z.number().min(0).max(10).default(2),
+  /** Signal candle body at least this share of its range (a decisive candle, not a wick) */
+  fadeMinBodyRatio: z.number().min(0).max(1).default(0.5),
+  /** RSI at or above this (fading up) / at or below 100 minus this (fading down) */
+  fadeRsiExtreme: z.number().min(50).max(100).default(70),
+  /** UTC hours with no signals (daily rollover: wide spreads, thin quotes) */
+  blockedHoursUtc: z.array(z.number().int().min(0).max(23)).max(24).default([21, 22, 23]),
 });
 
 export type RuleConfig = z.infer<typeof RuleConfigSchema>;

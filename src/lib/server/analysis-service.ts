@@ -19,7 +19,7 @@ export function resolveProvider(id: string): MarketDataProvider {
   return p;
 }
 
-export function mergeRules(overrides?: Partial<RuleConfig>, mode: SignalMode = "STRICT"): RuleConfig {
+export function mergeRules(overrides?: Partial<RuleConfig>, mode: SignalMode = "V2"): RuleConfig {
   const merged = RuleConfigSchema.parse({ ...DEFAULT_RULES, ...MODE_OVERRIDES[mode], ...(overrides ?? {}) });
   if (merged.emaFast >= merged.emaSlow) throw new HttpError(400, "emaFast must be shorter than emaSlow");
   if (merged.macdFast >= merged.macdSlow) throw new HttpError(400, "macdFast must be shorter than macdSlow");

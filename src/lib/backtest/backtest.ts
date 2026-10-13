@@ -12,6 +12,12 @@ export interface BacktestTrade {
   /** Exit = close of that same candle (1-minute expiry) */
   exit: number;
   outcome: Outcome;
+  /**
+   * Result if the trade had been entered one full candle late (entry = close of the
+   * trade candle, expiry one minute later). A pessimistic bound for slow manual entry;
+   * UNRESOLVED when that candle is missing.
+   */
+  lateOutcome: Outcome;
   segment: "IN_SAMPLE" | "OUT_OF_SAMPLE";
 }
 
@@ -31,6 +37,8 @@ export interface BacktestResult {
   inSample: PerformanceReport;
   outOfSample: PerformanceReport;
   overall: PerformanceReport;
+  /** Same trades, entered one candle late — how fast the edge decays with entry delay */
+  overallLate: PerformanceReport;
   assumptions: string[];
 }
 
@@ -59,7 +67,8 @@ export interface BacktestInput {
 export function runBacktest(input: BacktestInput): BacktestResult {
   const cfg = input.config ?? DEFAULT_RULES;
   const tfMs = cfg.timeframeSeconds * 1000;
-  const window = input.window ?? Math.max(cfg.minCandles + 30, 200);
+  // Match the live analysis, which fetches 300 candles (EMA warm-up depends on history length).
+  const window = input.window ?? Math.max(cfg.minCandles + 30, 300);
   const candles = [...input.candles].sort((a, b) => a.time - b.time);
   const frac = input.inSampleFraction ?? 0.7;
   const splitIdx = Math.floor(candles.length * frac);
@@ -92,12 +101,22 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     }
     const outcome: Outcome =
       next.close === next.open ? "TIE" : res.decision === "CALL" ? (next.close > next.open ? "WIN" : "LOSS") : next.close < next.open ? "WIN" : "LOSS";
+    const after = candles[i + 2];
+    const lateOutcome: Outcome =
+      !after || after.time !== next.time + tfMs
+        ? "UNRESOLVED"
+        : after.close === next.close
+          ? "TIE"
+          : res.decision === "CALL"
+            ? after.close > next.close ? "WIN" : "LOSS"
+            : after.close < next.close ? "WIN" : "LOSS";
     trades.push({
       signalCandleTime: candles[i].time,
       decision: res.decision,
       entry: next.open,
       exit: next.close,
       outcome,
+      lateOutcome,
       segment: i < splitIdx ? "IN_SAMPLE" : "OUT_OF_SAMPLE",
     });
   }
@@ -118,9 +137,11 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     inSample: summarize(trades.filter((t) => t.segment === "IN_SAMPLE").map(toRec), input.payout),
     outOfSample: summarize(trades.filter((t) => t.segment === "OUT_OF_SAMPLE").map(toRec), input.payout),
     overall: summarize(trades.map(toRec), input.payout),
+    overallLate: summarize(trades.map((t) => ({ time: t.signalCandleTime, outcome: t.lateOutcome })), input.payout),
     assumptions: [
       "Entry at the OPEN of the candle after the signal candle; expiry at that candle's CLOSE (1 minute).",
-      "Broker quotes, spreads and execution delay are not modelled; real fills differ from feed candles.",
+      "Broker quotes and spreads are not modelled; real fills differ from feed candles.",
+      "Entry delay: 'overallLate' re-scores every trade as if entered one full candle late. Real manual entry (a few seconds) lies between the two.",
       `Payout assumed ${(input.payout * 100).toFixed(0)}% on wins, full stake lost on losses, stake returned on ties.`,
       `Chronological split: first ${(frac * 100).toFixed(0)}% in-sample, remaining out-of-sample.`,
       "News filter not applied in backtests (no historical calendar configured).",

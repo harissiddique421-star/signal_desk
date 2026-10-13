@@ -1,7 +1,7 @@
 import type { RuleConfig } from "../config/rules";
 import { DEFAULT_RULES } from "../config/rules";
 import { atr, bollinger, ema, macd, percentileRank, rsi } from "../indicators";
-import type { AnalysisKind, Candle, Check, Decision, Direction, Evidence, MarketType, SignalResult } from "../types";
+import type { AnalysisKind, Candle, Check, Decision, Direction, Evidence, MarketType, SignalMetrics, SignalResult } from "../types";
 import { checkFreshness, closedCandlesOnly, inspectSeries } from "../validation/candles";
 import { anatomy, detectPatterns } from "../analysis/candles";
 import { buildZones, detectBreakouts, findSwings, marketStructure, nearestZones, resample } from "../analysis/structure";
@@ -73,6 +73,7 @@ export function evaluateSignal(input: EngineInput): SignalResult {
     bullishWeight: 0,
     bearishWeight: 0,
     ruleVersion: cfg.version,
+    metrics: null,
   };
 
   const addCheck = (id: string, label: string, passed: boolean, detail: string) => {
@@ -167,21 +168,26 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   }
 
   // ---- 4. Volatility filters --------------------------------------------------
+  const fadeMode = cfg.strategy === "FADE_V2";
   const atrSample = (a.slice(-cfg.volatilityWindow).filter((x) => x !== null) as number[]);
   const atrPct = percentileRank(atrSample, atrNow);
-  addCheck(
-    "vol.atrRange",
-    "Volatility",
-    atrPct >= cfg.minAtrPercentile && atrPct <= cfg.maxAtrPercentile,
-    `ATR percentile ${atrPct.toFixed(0)} (allowed ${cfg.minAtrPercentile}–${cfg.maxAtrPercentile})${atrPct < cfg.minAtrPercentile ? " — market too quiet" : atrPct > cfg.maxAtrPercentile ? " — volatility spike" : ""}`,
-  );
   const lastRange = lastC.high - lastC.low;
-  addCheck(
-    "vol.shock",
-    "Shock candle",
-    lastRange <= cfg.shockCandleAtr * atrPrev,
-    `Last range ${(lastRange / atrPrev).toFixed(2)}× ATR (limit ${cfg.shockCandleAtr}×)`,
-  );
+  if (!fadeMode) {
+    // TREND_V1 avoids quiet markets and shock candles. FADE_V2 trades exactly the
+    // large candles these filters remove, so it uses its own setup checks instead.
+    addCheck(
+      "vol.atrRange",
+      "Volatility",
+      atrPct >= cfg.minAtrPercentile && atrPct <= cfg.maxAtrPercentile,
+      `ATR percentile ${atrPct.toFixed(0)} (allowed ${cfg.minAtrPercentile}–${cfg.maxAtrPercentile})${atrPct < cfg.minAtrPercentile ? " — market too quiet" : atrPct > cfg.maxAtrPercentile ? " — volatility spike" : ""}`,
+    );
+    addCheck(
+      "vol.shock",
+      "Shock candle",
+      lastRange <= cfg.shockCandleAtr * atrPrev,
+      `Last range ${(lastRange / atrPrev).toFixed(2)}× ATR (limit ${cfg.shockCandleAtr}×)`,
+    );
+  }
 
   // ---- 5. News filter ---------------------------------------------------------
   const news = input.news ?? { available: false, blockingEvents: [] };
@@ -287,6 +293,9 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   base.agreementScore = round(agreement, 3);
 
   // ---- 8. Direction gates -----------------------------------------------------
+  if (fadeMode) {
+    return decideFade({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen });
+  }
   const want: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
   const supporting = evidence.filter((e) => e.direction === want).length;
   addCheck("decision.agreement", "Indicator agreement", Math.abs(agreement) >= cfg.minAgreement && want !== "NEUTRAL", `score ${agreement.toFixed(2)} (need ±${cfg.minAgreement})${Math.min(bull, bear) > 0.6 * Math.max(bull, bear) ? " — evidence contradictory" : ""}`);
@@ -309,9 +318,123 @@ export function evaluateSignal(input: EngineInput): SignalResult {
     addCheck("decision.level", "Room to opposing level", !blocked, support ? `Support ${fmt(support.low)}–${fmt(support.high)} is ${((close - support.high) / atrNow).toFixed(2)} ATR away` : "No support zone below");
   }
 
+  const opposing = want === "BULLISH" ? (resistance ? (resistance.low - close) / atrNow : null) : want === "BEARISH" ? (support ? (close - support.high) / atrNow : null) : null;
+  const metrics: SignalMetrics = {
+    atrPercentile: round(atrPct, 1),
+    lastRangeAtr: round(lastRange / atrPrev, 3),
+    bodyRatio: round(an.bodyRatio, 3),
+    lastCandleDir: lastC.close > lastC.open ? 1 : lastC.close < lastC.open ? -1 : 0,
+    rsi: round(rv, 2),
+    macdHistogram: h,
+    bbPercentB: round(pb, 3),
+    emaTrend: emaDir,
+    structure: ms.state,
+    mtfTrend: mtfDir,
+    opposingLevelAtr: opposing === null ? null : round(opposing, 3),
+    regime: atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : emaDir !== "NEUTRAL" && emaDir === msDir ? "TREND" : ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
+  };
+  base.metrics = metrics;
+
   addCheck("timing.window", "Entry window", windowOpen, windowOpen ? `Act before ${new Date(base.entryWindowEnd).toISOString()}` : "Entry window already passed — signal expired");
 
   const passed = reasons.length === 0;
+  base.engineDecision = sourceIndependentDecision(checks, want);
+  if (passed) base.decision = want === "BULLISH" ? "CALL" : "PUT";
+  return finalize(base, input, warnings);
+}
+
+interface FadeContext {
+  cfg: RuleConfig;
+  base: SignalResult;
+  input: EngineInput;
+  warnings: string[];
+  checks: Check[];
+  evidence: Evidence[];
+  addCheck: (id: string, label: string, passed: boolean, detail: string) => boolean;
+  lastC: Candle;
+  an: ReturnType<typeof anatomy>;
+  rv: number;
+  pb: number;
+  h: number;
+  atrPct: number;
+  lastRange: number;
+  atrPrev: number;
+  atrNow: number;
+  emaDir: Direction;
+  msDir: Direction;
+  mtfDir: Direction;
+  ms: ReturnType<typeof marketStructure>;
+  swings: ReturnType<typeof findSwings>;
+  windowOpen: boolean;
+}
+
+/**
+ * FADE_V2: trade AGAINST a stretched 1-minute candle.
+ * Setup (all on the closed signal candle):
+ *   - it closed outside the Bollinger band in its own direction (%B > 1 up / < 0 down),
+ *   - its range is at least `fadeMinRangeAtr` ATRs and its body at least `fadeMinBodyRatio` of the range,
+ *   - RSI is at an extreme in the same direction,
+ *   - the hour (UTC) is not blocked.
+ * Then PUT after an up-candle, CALL after a down-candle.
+ */
+function decideFade(x: FadeContext): SignalResult {
+  const { cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb } = x;
+  const up = lastC.close > lastC.open;
+  const down = lastC.close < lastC.open;
+  const stretchedUp = up && pb > 1 + cfg.fadePercentBOutside;
+  const stretchedDown = down && pb < -cfg.fadePercentBOutside;
+  const want: Direction = stretchedUp ? "BEARISH" : stretchedDown ? "BULLISH" : "NEUTRAL";
+  const rangeAtr = x.lastRange / x.atrPrev;
+
+  addCheck(
+    "fade.stretch",
+    "Stretched candle",
+    want !== "NEUTRAL",
+    want === "NEUTRAL" ? `Close inside the Bollinger band or candle against the stretch (%B ${pb.toFixed(2)})` : `${up ? "Up" : "Down"} candle closed ${up ? "above the upper" : "below the lower"} band (%B ${pb.toFixed(2)})`,
+  );
+  addCheck("fade.range", "Large candle", rangeAtr >= cfg.fadeMinRangeAtr, `range ${rangeAtr.toFixed(2)}× ATR (need ${cfg.fadeMinRangeAtr}×)`);
+  addCheck("fade.body", "Decisive body", an.bodyRatio >= cfg.fadeMinBodyRatio, `body ${(an.bodyRatio * 100).toFixed(0)}% of range (need ${(cfg.fadeMinBodyRatio * 100).toFixed(0)}%)`);
+  const rsiOk = up ? rv >= cfg.fadeRsiExtreme : down ? rv <= 100 - cfg.fadeRsiExtreme : false;
+  addCheck("fade.rsi", "RSI extreme", rsiOk, `RSI ${rv.toFixed(1)} (need ${up ? `≥ ${cfg.fadeRsiExtreme}` : `≤ ${100 - cfg.fadeRsiExtreme}`})`);
+  const hour = new Date(lastC.time).getUTCHours(); // hour of the signal candle, as in the research split
+  addCheck("session.hours", "Trading hours", !cfg.blockedHoursUtc.includes(hour), cfg.blockedHoursUtc.includes(hour) ? `${hour}:00 UTC is blocked (rollover hours: thin quotes, wide spreads)` : `${hour}:00 UTC allowed`);
+
+  if (want !== "NEUTRAL") {
+    evidence.push({
+      id: "setup.fade",
+      module: "Exhaustion fade",
+      label: want === "BEARISH" ? "Stretched up-candle → fade down" : "Stretched down-candle → fade up",
+      direction: want,
+      weight: 3,
+      detail: `%B ${pb.toFixed(2)}, range ${rangeAtr.toFixed(2)}× ATR, body ${(an.bodyRatio * 100).toFixed(0)}%, RSI ${rv.toFixed(1)}`,
+      detailUr:
+        want === "BEARISH"
+          ? "Bari hari candle Bollinger band se bahar band hui aur RSI hadd par hai — aksar agli candle mein thora wapas aata hai."
+          : "Bari laal candle Bollinger band se neeche band hui aur RSI hadd par hai — aksar agli candle mein thora wapas aata hai.",
+    });
+  }
+  warnings.push("FADE_V2 edge is small and decays within seconds: enter at the very start of the next candle or skip.");
+  if (x.mtfDir !== "NEUTRAL" && want !== "NEUTRAL" && x.mtfDir !== want) warnings.push(`Fading against the ${cfg.mtfMinutes}m trend (${x.mtfDir.toLowerCase()})`);
+
+  const metrics: SignalMetrics = {
+    atrPercentile: round(x.atrPct, 1),
+    lastRangeAtr: round(rangeAtr, 3),
+    bodyRatio: round(an.bodyRatio, 3),
+    lastCandleDir: up ? 1 : down ? -1 : 0,
+    rsi: round(rv, 2),
+    macdHistogram: x.h,
+    bbPercentB: round(pb, 3),
+    emaTrend: x.emaDir,
+    structure: x.ms.state,
+    mtfTrend: x.mtfDir,
+    opposingLevelAtr: null,
+    regime: x.atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : x.emaDir !== "NEUTRAL" && x.emaDir === x.msDir ? "TREND" : x.ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
+  };
+  base.metrics = metrics;
+
+  addCheck("timing.window", "Entry window", x.windowOpen, x.windowOpen ? `Act before ${new Date(base.entryWindowEnd!).toISOString()}` : "Entry window already passed — signal expired");
+
+  const passed = checks.every((c) => c.passed);
   base.engineDecision = sourceIndependentDecision(checks, want);
   if (passed) base.decision = want === "BULLISH" ? "CALL" : "PUT";
   return finalize(base, input, warnings);

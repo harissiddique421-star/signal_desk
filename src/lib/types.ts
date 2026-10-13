@@ -84,6 +84,33 @@ export interface SignalResult {
   bullishWeight: number;
   bearishWeight: number;
   ruleVersion: string;
+  /**
+   * Raw indicator readings at decision time (closed candles only). Recorded so every
+   * signal can be audited and analysed later; null when the engine stopped before
+   * computing indicators (data or source gate failed).
+   */
+  metrics?: SignalMetrics | null;
+}
+
+export interface SignalMetrics {
+  /** Percentile (0-100) of the current ATR within the recent volatility window */
+  atrPercentile: number;
+  /** Range of the signal candle divided by the previous ATR */
+  lastRangeAtr: number;
+  /** Body / range of the signal candle, 0..1 */
+  bodyRatio: number;
+  /** Signal candle direction: +1 up, -1 down, 0 flat */
+  lastCandleDir: -1 | 0 | 1;
+  rsi: number;
+  macdHistogram: number;
+  bbPercentB: number;
+  emaTrend: Direction;
+  structure: "UPTREND" | "DOWNTREND" | "RANGE" | "UNCLEAR";
+  mtfTrend: Direction;
+  /** Distance to the nearest opposing zone in ATRs (null when none) */
+  opposingLevelAtr: number | null;
+  /** Coarse regime label used for reporting */
+  regime: "TREND" | "RANGE" | "HIGH_VOL" | "UNCERTAIN";
 }
 
 export interface ProviderSymbol {

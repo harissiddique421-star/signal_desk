@@ -1,18 +1,29 @@
 import type { RuleConfig } from "./rules";
 
 /**
- * Two rule presets.
- * STRICT — every default threshold (fewest signals).
- * NORMAL — looser agreement and level filters, tolerates up to 3 quiet minutes
- *          without ticks, and keeps the signal actionable for 20 s after the candle
- *          closes (feeds can publish a finished minute a few seconds late).
- * Both still require: verified live feed, fresh data, EMA trend agreement,
- * structure not opposing, 5-minute agreement and no exhausted RSI.
- * More signals is not the same as more accurate signals — compare both in Backtest.
+ * Rule presets.
+ *
+ * V2     — FADE_V2 exhaustion-fade strategy (default). The only preset whose
+ *          historical out-of-sample win rate cleared break-even at an 85 % payout,
+ *          and only when the entry is taken at the very start of the next candle.
+ *          See docs/RESEARCH.md for every number and its limits.
+ * STRICT — the original TREND_V1 rules with every default threshold.
+ * NORMAL — TREND_V1 with looser agreement/level filters, up to 3 quiet minutes missing
+ *          and a 20 s entry window.
+ * STRICT and NORMAL are kept so a strategy version can be rolled back and compared,
+ * but on 3.87 M historical minutes both lost (win rate 48–49 %, CI below 50 %).
  */
-export type SignalMode = "STRICT" | "NORMAL";
+export type SignalMode = "V2" | "STRICT" | "NORMAL";
+
+export const SIGNAL_MODES: SignalMode[] = ["V2", "STRICT", "NORMAL"];
 
 export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
+  V2: {
+    version: "rules-v2-fade",
+    strategy: "FADE_V2",
+    // Mean reversion fades within seconds: keep the window short (see research: one minute late = 51 %).
+    entryWindowSeconds: 10,
+  },
   STRICT: { entryWindowSeconds: 15 },
   NORMAL: {
     minAgreement: 0.3,
@@ -22,4 +33,10 @@ export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
     maxMissingCandles: 3,
     entryWindowSeconds: 20,
   },
+};
+
+export const MODE_LABEL: Record<SignalMode, string> = {
+  V2: "v2 Fade (tested)",
+  STRICT: "v1 Strict (old)",
+  NORMAL: "v1 Normal (old)",
 };

@@ -11,13 +11,13 @@ export const SymbolsQuerySchema = z.object({
   marketType: MarketTypeSchema,
 });
 
-export const SignalModeSchema = z.enum(["STRICT", "NORMAL"]);
+export const SignalModeSchema = z.enum(["V2", "STRICT", "NORMAL"]);
 
 export const AnalyzeRequestSchema = z.strictObject({
   provider: ProviderIdSchema,
   symbol: SymbolSchema,
   marketType: MarketTypeSchema,
-  mode: SignalModeSchema.default("STRICT"),
+  mode: SignalModeSchema.default("V2"),
   rules: RuleOverridesSchema.optional(),
 });
 
@@ -29,7 +29,7 @@ export const BacktestRequestSchema = z.strictObject({
   payout: z.number().gt(0).max(2),
   count: z.number().int().min(300).max(5000).default(1500),
   inSampleFraction: z.number().min(0.3).max(0.9).default(0.7),
-  mode: SignalModeSchema.default("STRICT"),
+  mode: SignalModeSchema.default("V2"),
 });
 
 export const ResolveRequestSchema = z.strictObject({
