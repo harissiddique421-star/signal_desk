@@ -1,7 +1,7 @@
 import { BacktestRequestSchema } from "@/lib/api/schemas";
 import { runBacktest } from "@/lib/backtest/backtest";
 import { DEFAULT_RULES } from "@/lib/config/rules";
-import { resolveProvider } from "@/lib/server/analysis-service";
+import { mergeRules, resolveProvider } from "@/lib/server/analysis-service";
 import { enforceRateLimit, HttpError, json, readJson, safe } from "@/lib/server/http";
 import { closedCandlesOnly } from "@/lib/validation/candles";
 
@@ -23,8 +23,10 @@ export async function POST(req: Request) {
       source: { id: p.id, name: p.name, verified: p.verified, supportedMarketTypes: p.supportedMarketTypes },
       payout: body.payout,
       inSampleFraction: body.inSampleFraction,
+      config: mergeRules(undefined, body.mode),
     });
     return json({
+      mode: body.mode,
       synthetic: !p.verified,
       notice: p.verified
         ? "Historical simulation on provider candles. Past results do not guarantee future results."

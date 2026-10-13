@@ -130,8 +130,10 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   addCheck(
     "data.gaps",
     "Missing candles",
-    report.missing.length === 0,
-    report.missing.length ? `${report.missing.length} missing in last ${cfg.gapLookback} (first ${new Date(report.missing[0]).toISOString()})` : `None in last ${cfg.gapLookback}`,
+    report.missing.length <= cfg.maxMissingCandles,
+    report.missing.length
+      ? `${report.missing.length} missing in last ${cfg.gapLookback} (allowed ${cfg.maxMissingCandles}; first ${new Date(report.missing[0]).toISOString()})`
+      : `None in last ${cfg.gapLookback}`,
   );
   const fresh = checkFreshness(closed, tfMs, input.now, cfg.maxStalenessSeconds);
   addCheck("data.freshness", "Freshness", fresh.fresh, fresh.detail);

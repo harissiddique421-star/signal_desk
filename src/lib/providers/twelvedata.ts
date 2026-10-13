@@ -17,6 +17,20 @@ import { ProviderError } from "./types";
 const BASE_URL = "https://api.twelvedata.com";
 const SYMBOL_RE = /^[A-Z0-9]{2,10}\/[A-Z0-9]{2,10}$/;
 
+/** Most-traded pairs, listed first so users do not scroll past exotic crosses. */
+export const MAJOR_PAIRS = [
+  "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "USD/CHF", "NZD/USD",
+  "EUR/JPY", "GBP/JPY", "EUR/GBP", "AUD/JPY", "EUR/AUD", "EUR/CHF", "GBP/AUD", "AUD/CAD", "CAD/JPY", "CHF/JPY",
+];
+
+export function sortMajorsFirst(symbols: string[]): string[] {
+  const rank = (s: string) => {
+    const i = MAJOR_PAIRS.indexOf(s);
+    return i === -1 ? MAJOR_PAIRS.length : i;
+  };
+  return [...symbols].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
 const ErrorSchema = z.object({ status: z.literal("error"), code: z.number().optional(), message: z.string().optional() });
 
 const ValueSchema = z.object({
@@ -109,10 +123,7 @@ export class TwelveDataProvider implements MarketDataProvider {
     const { json } = await this.call("/forex_pairs", {});
     const parsed = ForexPairsSchema.safeParse(json);
     if (!parsed.success) throw new ProviderError("Provider symbol list did not match the expected format");
-    const symbols = parsed.data.data
-      .map((d) => d.symbol)
-      .filter((s) => SYMBOL_RE.test(s))
-      .sort()
+    const symbols = sortMajorsFirst(parsed.data.data.map((d) => d.symbol).filter((s) => SYMBOL_RE.test(s)))
       .map((s) => {
         const [base, quote] = s.split("/");
         return { symbol: s, displaySymbol: s, marketType: "LIVE" as const, base, quote };

@@ -1,5 +1,6 @@
 import "server-only";
 import { DEFAULT_RULES, RuleConfigSchema, type RuleConfig } from "../config/rules";
+import { MODE_OVERRIDES, type SignalMode } from "../config/presets";
 import { evaluateSignal } from "../engine/signal";
 import { bollinger, ema } from "../indicators";
 import { buildZones, findSwings } from "../analysis/structure";
@@ -18,16 +19,16 @@ export function resolveProvider(id: string): MarketDataProvider {
   return p;
 }
 
-export function mergeRules(overrides?: Partial<RuleConfig>): RuleConfig {
-  const merged = RuleConfigSchema.parse({ ...DEFAULT_RULES, ...(overrides ?? {}) });
+export function mergeRules(overrides?: Partial<RuleConfig>, mode: SignalMode = "STRICT"): RuleConfig {
+  const merged = RuleConfigSchema.parse({ ...DEFAULT_RULES, ...MODE_OVERRIDES[mode], ...(overrides ?? {}) });
   if (merged.emaFast >= merged.emaSlow) throw new HttpError(400, "emaFast must be shorter than emaSlow");
   if (merged.macdFast >= merged.macdSlow) throw new HttpError(400, "macdFast must be shorter than macdSlow");
   if (merged.minAtrPercentile >= merged.maxAtrPercentile) throw new HttpError(400, "minAtrPercentile must be below maxAtrPercentile");
   return merged;
 }
 
-export async function analyze(params: { providerId: string; symbol: string; marketType: MarketType; rules?: Partial<RuleConfig> }): Promise<AnalyzeResponse> {
-  const cfg = mergeRules(params.rules);
+export async function analyze(params: { providerId: string; symbol: string; marketType: MarketType; mode?: SignalMode; rules?: Partial<RuleConfig> }): Promise<AnalyzeResponse> {
+  const cfg = mergeRules(params.rules, params.mode);
   const provider = resolveProvider(params.providerId);
   const source = { id: provider.id, name: provider.name, verified: provider.verified, supportedMarketTypes: provider.supportedMarketTypes };
   const analysisKind = provider.verified ? "LIVE_FEED" : "SAMPLE";

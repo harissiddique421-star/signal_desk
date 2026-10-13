@@ -174,3 +174,30 @@ describe("route handlers", () => {
     expect(body.notice).toMatch(/SYNTHETIC/);
   });
 });
+
+describe("modes and resolve endpoint", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("TWELVEDATA_API_KEY", "");
+    vi.stubEnv("ENABLE_SAMPLE_PROVIDER", "true");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("analyze accepts mode and rejects unknown modes", async () => {
+    const { POST } = await import("@/app/api/analyze/route");
+    expect((await POST(post("/api/analyze", { provider: "sample", symbol: "SAMPLE-TREND", marketType: "LIVE", mode: "NORMAL" }))).status).toBe(200);
+    expect((await POST(post("/api/analyze", { provider: "sample", symbol: "SAMPLE-TREND", marketType: "LIVE", mode: "YOLO" }))).status).toBe(400);
+  });
+
+  it("backtest echoes the mode used", async () => {
+    const { POST } = await import("@/app/api/backtest/route");
+    const body = await (await POST(post("/api/backtest", { provider: "sample", symbol: "SAMPLE-TREND", marketType: "LIVE", payout: 0.85, count: 400, mode: "NORMAL" }))).json();
+    expect(body.mode).toBe("NORMAL");
+  });
+
+  it("resolve refuses synthetic data and validates input", async () => {
+    const { POST } = await import("@/app/api/resolve/route");
+    expect((await POST(post("/api/resolve", { provider: "sample", symbol: "SAMPLE-TREND", marketType: "LIVE", signals: [{ id: "a", signalCandleTime: 1_760_000_040_000, decision: "CALL" }] }))).status).toBe(400);
+    expect((await POST(post("/api/resolve", { provider: "sample", symbol: "SAMPLE-TREND", marketType: "LIVE", signals: [] }))).status).toBe(400);
+  });
+});

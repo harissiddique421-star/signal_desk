@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   return safe(async () => {
     enforceRateLimit(req, "analyze");
     const body = AnalyzeRequestSchema.parse(await readJson(req));
-    const out = await analyze({ providerId: body.provider, symbol: body.symbol, marketType: body.marketType, rules: body.rules });
+    const out = await analyze({ providerId: body.provider, symbol: body.symbol, marketType: body.marketType, mode: body.mode, rules: body.rules });
     return json(out);
   });
 }

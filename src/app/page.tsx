@@ -1,5 +1,5 @@
-import { Dashboard } from "@/components/Dashboard";
+import { SignalApp } from "@/components/simple/SignalApp";
 
 export default function Home() {
-  return <Dashboard />;
+  return <SignalApp />;
 }

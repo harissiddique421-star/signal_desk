@@ -11,10 +11,13 @@ export const SymbolsQuerySchema = z.object({
   marketType: MarketTypeSchema,
 });
 
+export const SignalModeSchema = z.enum(["STRICT", "NORMAL"]);
+
 export const AnalyzeRequestSchema = z.strictObject({
   provider: ProviderIdSchema,
   symbol: SymbolSchema,
   marketType: MarketTypeSchema,
+  mode: SignalModeSchema.default("STRICT"),
   rules: RuleOverridesSchema.optional(),
 });
 
@@ -26,6 +29,17 @@ export const BacktestRequestSchema = z.strictObject({
   payout: z.number().gt(0).max(2),
   count: z.number().int().min(300).max(5000).default(1500),
   inSampleFraction: z.number().min(0.3).max(0.9).default(0.7),
+  mode: SignalModeSchema.default("STRICT"),
+});
+
+export const ResolveRequestSchema = z.strictObject({
+  provider: ProviderIdSchema,
+  symbol: SymbolSchema,
+  marketType: MarketTypeSchema,
+  signals: z
+    .array(z.strictObject({ id: z.string().min(1).max(64), signalCandleTime: z.number().int().positive(), decision: z.enum(["CALL", "PUT"]) }))
+    .min(1)
+    .max(50),
 });
 
 export const OutcomeSchema = z.enum(["UNRESOLVED", "WIN", "LOSS", "TIE"]);

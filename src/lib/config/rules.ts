@@ -12,6 +12,8 @@ export const RuleConfigSchema = z.object({
   // Data quality gates
   minCandles: z.number().int().min(60).max(1000).default(120),
   gapLookback: z.number().int().min(10).max(500).default(60),
+  /** Missing 1-minute candles tolerated inside gapLookback (quiet minutes with no ticks) */
+  maxMissingCandles: z.number().int().min(0).max(10).default(0),
   /** Max age of the last closed candle's CLOSE time, in seconds */
   maxStalenessSeconds: z.number().int().min(5).max(600).default(75),
   /** A signal is only actionable this many seconds into the next candle */
