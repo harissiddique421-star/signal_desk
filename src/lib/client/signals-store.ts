@@ -15,8 +15,11 @@ export interface TrackedSignal {
   mode: SignalMode;
   /** Rule version that produced the signal (e.g. rules-v2-fade) */
   ruleVersion?: string;
-  /** AUTO = passed every rule; MANUAL = direction forced by the old Generate button (no longer produced) */
-  kind?: "AUTO" | "MANUAL";
+  /**
+   * AUTO = passed every rule of the active mode; SHADOW = what a comparison version would
+   * have done (never shown as a signal); MANUAL = forced by the old Generate button (no longer produced)
+   */
+  kind?: "AUTO" | "MANUAL" | "SHADOW";
   /** Share of weighted evidence pointing this way, 0-100 (not a win probability) */
   strength?: number;
   /** Generate-button strength bucket */
@@ -42,7 +45,7 @@ export const trackedStore = {
   },
   save(list: TrackedSignal[]) {
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, 500)));
+      window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, 2000)));
     } catch {
       /* storage unavailable */
     }
@@ -121,4 +124,64 @@ export function autoOutcomes(list: TrackedSignal[], mode: SignalMode): Outcome[]
     .filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode && t.status === "RESOLVED" && t.outcome)
     .sort((a, b) => a.signalCandleTime - b.signalCandleTime)
     .map((t) => t.outcome as Outcome);
+}
+
+/** Live-minute opportunities each version was evaluated on (data gates passed), for coverage. */
+export type OpportunityCounts = Record<string, number>;
+const OKEY = "signal-desk:opportunities:v1";
+export const opportunityStore = {
+  load(): OpportunityCounts {
+    try {
+      const v = JSON.parse(window.localStorage.getItem(OKEY) ?? "{}");
+      return v && typeof v === "object" ? v : {};
+    } catch {
+      return {};
+    }
+  },
+  save(c: OpportunityCounts) {
+    try {
+      window.localStorage.setItem(OKEY, JSON.stringify(c));
+    } catch {
+      /* storage unavailable */
+    }
+  },
+};
+
+export interface VersionRow {
+  version: string;
+  label: string;
+  opportunities: number;
+  signals: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  pending: number;
+  /** signals / opportunities */
+  coverage: number | null;
+}
+
+/**
+ * Live side-by-side comparison of v2 (rules) and v3 (ML shadow) on the same minutes.
+ * A version's signals are its AUTO records when it was the active mode plus its SHADOW records otherwise.
+ */
+export function versionComparison(list: TrackedSignal[], opps: OpportunityCounts): VersionRow[] {
+  const rows: [string, string, (t: TrackedSignal) => boolean][] = [
+    ["rules-v2-fade", "v2 Fade (rules)", (t) => t.ruleVersion === "rules-v2-fade" || ((t.kind ?? "AUTO") === "AUTO" && t.mode === "V2" && !t.ruleVersion)],
+    ["v3-ml-shadow", "v3 ML (shadow)", (t) => t.ruleVersion === "v3-ml-shadow"],
+  ];
+  return rows.map(([version, label, match]) => {
+    const items = list.filter((t) => t.kind !== "MANUAL" && match(t));
+    const o = opps[version] ?? 0;
+    return {
+      version,
+      label,
+      opportunities: o,
+      signals: items.length,
+      wins: items.filter((t) => t.outcome === "WIN").length,
+      losses: items.filter((t) => t.outcome === "LOSS").length,
+      ties: items.filter((t) => t.outcome === "TIE").length,
+      pending: items.filter((t) => t.status === "PENDING").length,
+      coverage: o ? items.length / o : null,
+    };
+  });
 }

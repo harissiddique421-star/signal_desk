@@ -1,5 +1,6 @@
 /** Shapes shared by API routes and the client. Type-only; safe to import anywhere. */
 import type { BacktestResult } from "../backtest/backtest";
+import type { ShadowDecision } from "../engine/shadow";
 import type { ProviderHealth } from "../providers/types";
 import type { PerformanceReport, Outcome } from "../stats/performance";
 import type { Candle, MarketType, ProviderSymbol, SignalResult } from "../types";
@@ -17,6 +18,8 @@ export interface AnalyzeResponse {
   result: SignalResult;
   chart: ChartPayload | null;
   provider: { id: string; name: string; verified: boolean; latencyMs: number };
+  /** Shadow mode: what the comparison versions would have decided on the same candles. Not signals. */
+  shadow?: ShadowDecision[];
 }
 
 export interface HealthResponse {

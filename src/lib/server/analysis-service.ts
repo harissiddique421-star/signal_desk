@@ -1,7 +1,8 @@
 import "server-only";
 import { DEFAULT_RULES, RuleConfigSchema, type RuleConfig } from "../config/rules";
 import { MODE_OVERRIDES, type SignalMode } from "../config/presets";
-import { evaluateSignal } from "../engine/signal";
+import { evaluateSignal, type EngineInput } from "../engine/signal";
+import { shadowDecisions } from "../engine/shadow";
 import { bollinger, ema } from "../indicators";
 import { buildZones, findSwings } from "../analysis/structure";
 import { atr } from "../indicators";
@@ -50,8 +51,10 @@ export async function analyze(params: { providerId: string; symbol: string; mark
   const resp = await provider.getCandles({ symbol: params.symbol, marketType: params.marketType, count });
   // Evaluate at the time the data was received, so the freshness check reflects reality.
   const now = Math.max(Date.now(), resp.receivedAt);
-  const result = evaluateSignal({ candles: resp.candles, symbol: sym.symbol, displaySymbol: sym.displaySymbol, marketType: params.marketType, symbolSupported: true, source, analysisKind, now, config: cfg });
-  return { result, chart: buildChart(resp.candles, now, cfg), provider: { id: provider.id, name: provider.name, verified: provider.verified, latencyMs: resp.latencyMs } };
+  const input: EngineInput = { candles: resp.candles, symbol: sym.symbol, displaySymbol: sym.displaySymbol, marketType: params.marketType, symbolSupported: true, source, analysisKind, now };
+  const result = evaluateSignal({ ...input, config: cfg });
+  const shadow = shadowDecisions(input, params.mode ?? "V2", result);
+  return { result, chart: buildChart(resp.candles, now, cfg), provider: { id: provider.id, name: provider.name, verified: provider.verified, latencyMs: resp.latencyMs }, shadow };
 }
 
 function buildChart(raw: Candle[], now: number, cfg: RuleConfig): ChartPayload | null {

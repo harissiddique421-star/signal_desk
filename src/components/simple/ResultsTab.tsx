@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client/api";
 import { fmtPct, fmtPrice, fmtTime } from "@/lib/client/format";
-import { autoOutcomes, type TrackedSignal } from "@/lib/client/signals-store";
+import { autoOutcomes, opportunityStore, versionComparison, type TrackedSignal } from "@/lib/client/signals-store";
+import { wilson } from "@/lib/stats/performance";
 import { MODE_LABEL, SIGNAL_MODES, type SignalMode } from "@/lib/config/presets";
 import { assessStrategyHealth } from "@/lib/stats/monitor";
 import { summarize } from "@/lib/stats/performance";
@@ -33,6 +34,13 @@ export function ResultsTab(props: {
   const headline = useMemo(() => list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode), [list, mode]);
   const report = useMemo(() => summarize(headline.map((t) => ({ time: t.createdAt, outcome: t.outcome ?? "UNRESOLVED" })), payout), [headline, payout]);
   const health = useMemo(() => assessStrategyHealth(autoOutcomes(tracked, mode), payout), [tracked, mode, payout]);
+  const [opps, setOpps] = useState<Record<string, number>>({});
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- read browser storage after mount
+    setOpps(opportunityStore.load());
+  }, [tracked]);
+  const comparison = useMemo(() => versionComparison(tracked, opps), [tracked, opps]);
+  const visible = useMemo(() => list.filter((t) => t.kind !== "SHADOW"), [list]);
 
   // Settle pending signals (for any pair) whose trade candle has closed.
   const settle = useCallback(async () => {
@@ -144,11 +152,48 @@ export function ResultsTab(props: {
       {busy && <p className="text-sm text-muted">Results check ho rahe hain…</p>}
       {msg && <p className="text-sm text-warn">{msg}</p>}
 
-      {list.length === 0 ? (
+      <div className="glass-quiet p-4 text-sm" data-testid="shadow-compare">
+        <h3 className="font-semibold">v2 vs v3 (shadow) — live muqabla</h3>
+        <p className="mt-1 text-xs text-muted">
+          Dono versions har live minute par chalte hain. Jo version active nahin, uske signal sirf yahan gine jaate hain — aapko alert nahin aata. v3 tabhi kaam ka mana jaye jab yahan kam az kam 200 nataij ke baad bhi v2 se behtar ho.
+        </p>
+        <table className="mt-2 w-full text-left text-xs">
+          <thead className="text-muted">
+            <tr>
+              <th className="py-1 font-normal">Version</th>
+              <th className="font-normal">Moqay</th>
+              <th className="font-normal">Signal</th>
+              <th className="font-normal">W/L</th>
+              <th className="font-normal">Jeet (95%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.map((r) => {
+              const ci = wilson(r.wins, r.wins + r.losses);
+              return (
+                <tr key={r.version} className="border-t border-white/5">
+                  <td className="py-1.5">{r.label}</td>
+                  <td>{r.opportunities}</td>
+                  <td>
+                    {r.signals}
+                    {r.coverage !== null ? ` (${(r.coverage * 100).toFixed(1)}%)` : ""}
+                  </td>
+                  <td>
+                    <span className="text-call">{r.wins}</span>/<span className="text-put">{r.losses}</span>
+                  </td>
+                  <td>{r.wins + r.losses ? `${fmtPct(r.wins / (r.wins + r.losses), 0)}${ci && r.wins + r.losses >= 20 ? ` (${fmtPct(ci[0], 0)}–${fmtPct(ci[1], 0)})` : ""}` : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {visible.length === 0 ? (
         <p className="glass-quiet p-4 text-sm text-muted">Abhi koi BUY/SELL signal nahin aaya. Signal screen khuli rakhein — signal aate hi yahan dikhega aur 2 minute baad uska nateeja.</p>
       ) : (
         <ul className="space-y-2">
-          {list.map((t) => (
+          {visible.map((t) => (
             <li key={t.id} className="glass-quiet flex items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="font-semibold">

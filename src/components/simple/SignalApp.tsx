@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { AnalyzeResponse, HealthResponse, SymbolsResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
 import { fmtPrice, fmtTime } from "@/lib/client/format";
-import { autoOutcomes, DEFAULT_SIMPLE, simpleSettingsStore, todaysTally, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
+import { autoOutcomes, DEFAULT_SIMPLE, opportunityStore, simpleSettingsStore, todaysTally, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
 import { MODE_LABEL, SIGNAL_MODES } from "@/lib/config/presets";
 import { assessStrategyHealth } from "@/lib/stats/monitor";
 import { agreementCount, CHECK_TEXT, evidenceChips, onlyTimingFailed, waitReason } from "@/lib/client/simple-text";
@@ -39,6 +39,7 @@ export function SignalApp() {
   const [checkBusy, setCheckBusy] = useState(false);
   const loaded = useRef(false);
   const lastAlerted = useRef<string | null>(null);
+  const lastShadowMinute = useRef<string | null>(null);
 
   // ---- bootstrap ---------------------------------------------------------------
   const loadHealth = useCallback(async () => {
@@ -175,6 +176,39 @@ export function SignalApp() {
       if (settings.sound && lastAlerted.current !== id) {
         lastAlerted.current = id;
         playSignalTone(res.decision as "CALL" | "PUT");
+      }
+    }
+    // Shadow mode: record what the other version would have done on the same minute (never alerted).
+    if (res.analysisKind === "LIVE_FEED" && res.signalCandleTime && r.data.shadow) {
+      const minuteKey = `${res.symbol}-${res.signalCandleTime}`;
+      if (lastShadowMinute.current !== minuteKey) {
+        lastShadowMinute.current = minuteKey;
+        const opps = opportunityStore.load();
+        for (const sh of r.data.shadow) if (sh.eligible) opps[sh.version] = (opps[sh.version] ?? 0) + 1;
+        opportunityStore.save(opps);
+      }
+      const activeVersion = res.ruleVersion;
+      const extra = r.data.shadow.filter((sh) => sh.decision !== "NO_TRADE" && sh.version !== activeVersion);
+      if (extra.length) {
+        setTracked((list) => {
+          const add = extra
+            .map((sh) => ({
+              id: `${res.symbol}-${res.signalCandleTime}-${sh.version}`,
+              pair: res.symbol,
+              provider: provider.id,
+              marketType: "LIVE" as const,
+              decision: sh.decision as "CALL" | "PUT",
+              signalCandleTime: res.signalCandleTime!,
+              entryRef: res.entryReference,
+              mode: settings.mode,
+              ruleVersion: sh.version,
+              kind: "SHADOW" as const,
+              createdAt: res.analyzedAt,
+              status: "PENDING" as const,
+            }))
+            .filter((t) => !list.some((x) => x.id === t.id));
+          return add.length ? [...add, ...list] : list;
+        });
       }
     }
     return r.data;
