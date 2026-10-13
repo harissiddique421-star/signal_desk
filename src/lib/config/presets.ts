@@ -21,8 +21,9 @@ export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
   V2: {
     version: "rules-v2-fade",
     strategy: "FADE_V2",
-    // Mean reversion fades within seconds: keep the window short (see research: one minute late = 51 %).
-    entryWindowSeconds: 10,
+    // Mean reversion fades within seconds (one minute late = 51.5 %), but the window must
+    // cover the app's last scan attempt (11 s) plus network time — see src/lib/client/scan-timing.ts.
+    entryWindowSeconds: 15,
   },
   STRICT: { entryWindowSeconds: 15 },
   NORMAL: {

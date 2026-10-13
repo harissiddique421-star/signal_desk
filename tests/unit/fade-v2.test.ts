@@ -59,8 +59,9 @@ describe("FADE_V2 strategy", () => {
     expect(failed(r)).toEqual(["session.hours"]);
   });
 
-  it("expires after the 10 s entry window — the edge decays within seconds", () => {
-    const r = run(stretchedUp(), V2, 11_000);
+  it("is still valid at the app's last scan attempt (11 s) and expires after 15 s", () => {
+    expect(run(stretchedUp(), V2, 11_000).decision).toBe("PUT");
+    const r = run(stretchedUp(), V2, 16_000);
     expect(r.decision).toBe("NO_TRADE");
     expect(failed(r)).toEqual(["timing.window"]);
   });

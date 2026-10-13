@@ -10,6 +10,7 @@ import { MODE_LABEL, SIGNAL_MODES } from "@/lib/config/presets";
 import { assessStrategyHealth } from "@/lib/stats/monitor";
 import { agreementCount, CHECK_TEXT, evidenceChips, onlyTimingFailed, waitReason } from "@/lib/client/simple-text";
 import { playSignalTone, unlockAudio } from "@/lib/client/sound";
+import { feedStatsStore, msUntilFirstScan, recordFeedOutcome, SCAN_MAX_ATTEMPTS, SCAN_RETRY_MS, type FeedStats } from "@/lib/client/scan-timing";
 import { resolveSignal } from "@/lib/stats/resolve";
 import type { ProviderSymbol } from "@/lib/types";
 import { CandleChart } from "../CandleChart";
@@ -18,7 +19,6 @@ import { BacktestTab } from "./BacktestTab";
 
 type Tab = "signal" | "results" | "backtest" | "more";
 
-const MAX_RETRIES = 3;
 
 export function SignalApp() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -234,7 +234,7 @@ export function SignalApp() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       const serverNow = Date.now() + offset;
-      const delay = 60_000 - (serverNow % 60_000) + 4_000;
+      const delay = msUntilFirstScan(serverNow);
       setNextScanAt(Date.now() + delay);
       timer = setTimeout(() => void run(1), delay);
     };
@@ -242,11 +242,13 @@ export function SignalApp() {
       const res = await scanRef.current();
       if (cancelled) return;
       const late = res?.result.checks.some((c) => c.id === "data.freshness" && !c.passed);
-      if (late && attempt < MAX_RETRIES) {
-        setNextScanAt(Date.now() + 5_000);
-        timer = setTimeout(() => void run(attempt + 1), 5_000);
+      if (late && attempt < SCAN_MAX_ATTEMPTS) {
+        setNextScanAt(Date.now() + SCAN_RETRY_MS);
+        timer = setTimeout(() => void run(attempt + 1), SCAN_RETRY_MS);
         return;
       }
+      // Record how quickly the feed delivered the finished candle (shown under More → Feed timing).
+      if (res && res.result.analysisKind === "LIVE_FEED") feedStatsStore.save(recordFeedOutcome(feedStatsStore.load(), late ? null : attempt));
       schedule();
     };
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the pair or mode changes
@@ -350,6 +352,9 @@ export function SignalApp() {
             )}
           </nav>
           {symbolsError && <p role="alert" className="mt-2 text-sm text-put">{symbolsError}</p>}
+          <p className="mt-2 text-xs text-faint" data-testid="otc-note">
+            Sirf asli market (bina &quot;OTC&quot;) pairs ke liye. Quotex ke OTC pair par ye signal lagu nahi hote.
+          </p>
 
           {!live && provider && (
             <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">
@@ -509,6 +514,7 @@ export function SignalApp() {
             />
             <p className="mt-1 text-xs text-faint">Barabar rehne ke liye kam az kam {(100 / (1 + settings.payoutPercent / 100)).toFixed(1)}% jeet chahiye.</p>
           </div>
+          <FeedTiming />
           <div>
             <h2 className="font-semibold">Yeh kaise kaam karta hai</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
@@ -549,5 +555,28 @@ export function SignalApp() {
         </div>
       </nav>
     </main>
+  );
+}
+
+/** How quickly the live feed delivered each finished candle (counted on this device). */
+function FeedTiming() {
+  const [s, setS] = useState<FeedStats | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- read browser storage after mount
+    setS(feedStatsStore.load());
+  }, []);
+  if (!s) return null;
+  const total = s.attempt1 + s.attempt2 + s.attempt3 + s.missed;
+  const pct = (n: number) => (total ? `${Math.round((n / total) * 100)}%` : "—");
+  return (
+    <div data-testid="feed-timing">
+      <h2 className="font-semibold">Feed timing</h2>
+      <p className="text-sm text-muted">
+        {total === 0
+          ? "Abhi live scans nahin hue."
+          : `${total} minute: pehli koshish par ${pct(s.attempt1)}, doosri ${pct(s.attempt2)}, teesri ${pct(s.attempt3)}, nahin mila ${pct(s.missed)}.`}
+      </p>
+      <p className="mt-1 text-xs text-faint">Agar &quot;nahin mila&quot; zyada ho to feed der se candle bhej raha hai — us waqt app WAIT dikhata hai.</p>
+    </div>
   );
 }

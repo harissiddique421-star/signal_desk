@@ -13,7 +13,7 @@ Same source and data gates as v1 (steps 1–2 below). Then, on the last **closed
 | `fade.body` | body ≥ `fadeMinBodyRatio` (50 %) of the range |
 | `fade.rsi` | RSI(14) ≥ `fadeRsiExtreme` (70) after an up-candle, ≤ 30 after a down-candle |
 | `session.hours` | signal candle hour (UTC) not in `blockedHoursUtc` (21, 22, 23 — daily rollover) |
-| `timing.window` | evaluated within `entryWindowSeconds` (10) of the candle close |
+| `timing.window` | evaluated within `entryWindowSeconds` (15) of the candle close — wide enough for the app's last scan attempt at 11 s |
 
 All pass → **PUT after the up-candle, CALL after the down-candle**, for the next 1-minute candle. Anything else → NO TRADE with the failed check named. v1's volatility/shock filters and trend gates are not applied in v2 (the trend evidence is still computed and shown). There is no score: a v2 signal either meets every rule or it does not.
 
