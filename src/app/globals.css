@@ -1,26 +1,161 @@
 @import "tailwindcss";
 
+/*
+  Signal Desk tokens
+  abyss   #050A14  page background (deep blue-black)
+  glass   rgba(140,180,255,.055) panel fill, with backdrop blur
+  edge    rgba(150,195,255,.14)  panel border
+  ink     #E7EEF8  primary text   (contrast 16:1 on abyss)
+  muted   #93A6BF  secondary text (7.6:1)
+  cyan    #56D4EC  accent
+  blue    #4C8DFF  secondary accent
+  call    #3FDCA0  CALL
+  put     #FF7088  PUT
+  hold    #A9B7CA  NO TRADE
+*/
+
+@theme {
+  --color-abyss: #050a14;
+  --color-deep: #0a1324;
+  --color-ink: #e7eef8;
+  --color-muted: #93a6bf;
+  --color-faint: #5d6f88;
+  --color-cyan: #56d4ec;
+  --color-blue: #4c8dff;
+  --color-call: #3fdca0;
+  --color-put: #ff7088;
+  --color-hold: #a9b7ca;
+  --color-warn: #f5c45b;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-abyss);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(76, 141, 255, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(86, 212, 236, 0.09), transparent 60%),
+    var(--color-abyss);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  min-height: 100dvh;
+}
+
+/* Faint 1-minute tick grid behind everything — the product's unit of time */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(150, 195, 255, 0.035) 1px, transparent 1px);
+  background-size: 60px 100%;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+  z-index: 0;
+}
+
+@layer components {
+  .glass {
+    background: rgba(140, 180, 255, 0.055);
+    border: 1px solid rgba(150, 195, 255, 0.14);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-radius: 1rem;
+  }
+  .glass-quiet {
+    background: rgba(140, 180, 255, 0.03);
+    border: 1px solid rgba(150, 195, 255, 0.09);
+    border-radius: 0.75rem;
+  }
+  .field {
+    background: rgba(5, 10, 20, 0.6);
+    border: 1px solid rgba(150, 195, 255, 0.18);
+    border-radius: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    color: var(--color-ink);
+    min-height: 2.75rem;
+  }
+  .field:focus-visible,
+  .btn:focus-visible,
+  .seg button:focus-visible,
+  .tab:focus-visible {
+    outline: 2px solid var(--color-cyan);
+    outline-offset: 2px;
+  }
+  .btn {
+    min-height: 2.75rem;
+    border-radius: 0.6rem;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #5fd9ef, #3fb8d6);
+    color: #04121c;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #7ae2f3, #4cc3df);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    border: 1px solid rgba(150, 195, 255, 0.2);
+    color: var(--color-ink);
+  }
+  .btn-ghost:hover {
+    background: rgba(140, 180, 255, 0.08);
+  }
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 0.7rem;
+    background: rgba(5, 10, 20, 0.6);
+    border: 1px solid rgba(150, 195, 255, 0.18);
+  }
+  .seg button {
+    min-height: 2.4rem;
+    padding: 0 0.9rem;
+    border-radius: 0.5rem;
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+  .seg button[aria-pressed="true"] {
+    background: rgba(86, 212, 236, 0.16);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px rgba(86, 212, 236, 0.35);
+  }
+  .tab {
+    white-space: nowrap;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.6rem;
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+  .tab[aria-selected="true"] {
+    color: var(--color-ink);
+    background: rgba(140, 180, 255, 0.09);
+  }
+  .verdict {
+    font-stretch: 75%;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
