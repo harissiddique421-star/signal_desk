@@ -19,6 +19,10 @@ All pass → **PUT after the up-candle, CALL after the down-candle**, for the ne
 
 Historical result (OANDA, untouched TEST period Jan–May 2020): 55.6 % (95 % CI 54.1–57.1 %) with entry at the next candle's open; 51.5 % if entered one candle late. Break-even at 85 % payout is 54.05 %.
 
+## v3 — ML shadow (`v3-ml-shadow`)
+
+A frozen LightGBM model (`src/lib/ml/model-v3.json`) predicts p(up) for the next candle from 33 features; CALL if calibrated p ≥ 0.58, PUT if ≤ 0.42, otherwise NO TRADE. It runs only in **shadow mode**: its decisions are recorded and compared with v2 in Results, never shown as signals. Trained pairs only (EUR/USD, GBP/USD, USD/CAD, AUD/USD, EUR/JPY, AUD/JPY); no OTC. See `RESEARCH.md` §9.
+
 ## v1 — trend confluence (`strategy: TREND_V1`)
 
 On 3.87 M historical minutes v1 won 48–49 % (CI below 50 %) in every split. Not recommended.

@@ -9,6 +9,8 @@
 - **The Generate button was a coin flip.** Its forced UP/DOWN answers won 49.1 % (Mazboot), 49.2 % (Darmiyana) and 49.8 % (Kamzor) on TEST. At an 85 % payout you need 54.1 % to break even.
 - **v2 (exhaustion fade)** trades *against* a large, decisive candle that closed outside the Bollinger band with RSI at an extreme. On the untouched TEST period it won **55.6 % (95 % CI 54.1–57.1 %, 4,420 trades)**, +127 stake units at 85 % payout, about 5 signals per pair per day.
 - **But the edge disappears with slow entry.** Entering one candle late drops v2 to **51.5 %** (a loss). Real manual entry on Quotex (a few seconds late, broker's own price) sits between those two numbers, so **profit in real use is not demonstrated.**
+- **Machine learning (second round, §9):** logistic regression and LightGBM on 33 decision-time features have almost no predictive power (AUC 0.513–0.515). Trading only their most confident 0.3 % of minutes gave **58.9 % (56.5–61.3 %, 1,620 trades)** on TEST, but monthly retraining dropped it to 55.0 %, so it is **not** a proven improvement over v2. It runs in shadow mode for live comparison only.
+- **90 % is not supported either**: the best validation bucket with ≥ 30 trades was 73.8 % on 80 trades.
 - **80 % is not supported by the evidence.** No rule, pair, session or regime came close. The best stable result is ~56 %.
 
 ## 2. Data
@@ -104,6 +106,54 @@ TEST by pair: AUD/JPY 58.3 %, AUD/USD 58.2 %, EUR/USD 55.8 %, GBP/USD 55.7 %, US
 - Rollback: v1 Strict / v1 Normal stay selectable (marked old) and keep their own stats.
 - No trade execution, browser automation, broker credentials or Quotex APIs were added.
 
+## 9. Deep optimization: statistical and ML models (second round)
+
+Question: do models fed with all decision-time features beat the v2 rule, and is 90 % reachable?
+
+**Extra checks before modelling**
+
+- Labels: 20,000 random ledger rows re-derived from the raw CSVs by an independent script → **0 mismatches** (on-time and late labels).
+- Pair/market wiring, candle closing, entry window and repainting were re-checked (see §3); no new bug found.
+- v1 "agreement score" vs outcome on TEST: 48.5–49.6 % in every bucket from 0.45 to 1.0 — **no relationship** to winning, so it was never a confidence score.
+- Feature parity: `scripts/research/features.py` matches the engine's own RSI, %B, range/ATR and ATR-percentile readings to rounding (median abs. diff ≤ 0.0025 RSI points).
+
+**Dataset** (`features.py`): 33 features available at the close of the signal candle — returns over 1–60 min scaled by ATR, candle geometry, RSI 14/7, %B, MACD histogram and its change, EMA distances and slope, ATR percentile and ratio, distance to 20-bar high/low, last complete 5-minute return, hour, weekday, minute in the 5-minute bucket, pair. Tick volume is excluded (the live feed has no comparable volume). Eligible minutes = same data gate as the app (no missing minute in the last 60): TRAIN 1,073,673 · VALIDATION 386,841 · TEST 521,240.
+
+**Protocol** (`ml.py`): models fit on TRAIN only; VALIDATION used for early stopping, isotonic calibration and the abstention margin θ (choose θ with the highest lower 95 % bound, ≥ 1,000 trades); θ frozen; TEST scored once. Decision: CALL if calibrated p(up) ≥ 0.5 + θ, PUT if ≤ 0.5 − θ, else NO TRADE. Experiments tried: 2 model types × 16 margins (+ the 864 v2 grid points from §5).
+
+**Predictive power on TEST (all eligible minutes)**
+
+| Model | AUC | Log-loss (base 0.69314) | Win rate if it always trades |
+|---|---|---|---|
+| Logistic regression | 0.5133 | 0.69300 | 50.9 % |
+| LightGBM (52 trees) | 0.5147 | 0.69281 | 50.9 % |
+
+Calibrated probabilities stay between ~0.46 and ~0.53 (reliability within ±0.01 of observed). The models know very little; they never become "sure".
+
+**Selective prediction — same TEST minutes, identical outcome rule**
+
+| Version | Opportunities | Signals (coverage) | Decided | Win rate (95 % CI) | Net @85 % | Max DD | Longest losing streak | One candle late |
+|---|---|---|---|---|---|---|---|---|
+| v1 STRICT (old) | 521,240 | 60,719 (11.6 %) | 57,995 | 49.1 % (48.7–49.6) | −5,274 | 5,276 | 16 | 49.0 % |
+| v2 Fade (rules, default) | 521,240 | 4,551 (0.87 %) | 4,420 | 55.6 % (54.1–57.1) | +127 | 41 | 8 | 51.5 % |
+| Logistic, θ = 0.08 | 521,240 | 1,070 (0.21 %) | 1,037 | 58.4 % (55.4–61.4) | +84 | 20 | 9 | 51.7 % |
+| **v3 LightGBM, θ = 0.08** | 521,240 | 1,667 (0.32 %) | 1,620 | **58.9 % (56.5–61.3)** | +145 | 17 | 6 | 52.3 % |
+
+v3 by pair (TEST): AUD/USD 65.6 %, EUR/USD 61.3 %, AUD/JPY 59.6 %, GBP/USD 58.8 %, USD/CAD 54.5 %, EUR/JPY 53.7 %. By month: 53.3–61.8 %. Rejected opportunities: 99.68 %.
+
+**Robustness**
+
+- *Walk-forward*: refitting LightGBM before each TEST month on all earlier data (same settings, θ, recalibrated on the previous 6 months) gave **55.0 % (95 % CI 54.3–55.7 %)** on 18,742 trades — the probability scale shifts between refits, coverage jumped to 3.7 % and the edge fell to v2's level. The 58.9 % is therefore tied to one frozen model and is **not** shown to survive retraining.
+- v3 vs v2 on TEST: +3.3 points, z ≈ 2.3 (p ≈ 0.02) for a single comparison, but after 30+ model/margin experiments and the failed walk-forward this is **not** a demonstrated improvement.
+- When v2 fires, the GBM points the same way 100 % of the time (it learned the same exhaustion-reversal effect), so it cannot filter v2's losers.
+- Ablation (drop one feature group, VALIDATION): every group changes AUC by ≤ 0.0012. Time-of-day and short-term momentum carry the most; trend, oscillators, volatility, range and 5-minute groups are largely redundant with each other. Pair adds nothing.
+
+**90 % target**: the highest VALIDATION win rate at any margin with ≥ 30 trades was **73.8 % on 80 trades** (95 % CI 63–82 %), i.e. 0.02 % of minutes. Nothing approached 90 %, and tiny high-margin buckets did not hold up. **90 % is not supported by this data.** The best defensible result remains ~56–59 % with immediate entry on < 1 % of minutes, falling to ~52 % with a one-minute delay.
+
+**What shipped**: v3 runs in **shadow mode only** (`src/lib/ml/`, `src/lib/engine/shadow.ts`). On every live scan the app records what v2 and v3 would have done on the same minute, settles them with the same outcome rule, and shows coverage and win rate side by side in Results. v3 never raises an alert. The TypeScript port reproduces the research result exactly (1,620 trades, 58.89 %, `scripts/research/shadow-ledger.ts`) and matches LightGBM's probabilities to 1e-9 on a fixture (`tests/unit/ml-shadow.test.ts`).
+
+**Next experiments**: tick data to measure entry delay in seconds; a recent (2024–2026) dataset from the live provider; walk-forward retraining with a margin defined by coverage (top x %) instead of a probability, which is stable across refits; promote v3 only if live shadow results beat v2 on ≥ 200 decided trades.
+
 ## 7. Limitations
 
 1. OANDA mid candles ≠ Twelve Data ≠ Quotex quotes. Reversal effects at 1 minute are sensitive to how a feed builds its candles; re-check on the live feed before using real money.
@@ -127,4 +177,11 @@ npx tsx scripts/research/ledger.ts --data data --pair EUR_USD --out research-out
 python3 scripts/research/analyze.py --ledgers research-out/baseline --out research-out/baseline-report.json --pickle research-out/baseline.pkl
 python3 scripts/research/search_fade.py --pickle research-out/baseline.pkl --out research-out/fade-search.json
 python3 scripts/research/compare.py --baseline research-out/baseline --v2 research-out/v2 --out research-out/compare.json
+
+# 4. Models (§9): features, training/validation/test, export, parity fixture, TS re-check
+python3 scripts/research/features.py --data data --out research-out/features.pkl
+python3 scripts/research/ml.py --features research-out/features.pkl --v2 research-out/v2 --out research-out/ml.json --export research-out/model-v3.json
+python3 scripts/research/gen_ml_fixture.py --model research-out/model-v3.lgb.txt --json src/lib/ml/model-v3.json --out tests/fixtures/ml-v3.json
+npx tsx scripts/research/shadow-ledger.ts --data data --pair EUR_USD --from 2020-01-01T00:00:00Z --out research-out/v3
 ```
+Python packages: pandas, numpy, scikit-learn, lightgbm.

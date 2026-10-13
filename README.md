@@ -13,6 +13,7 @@ Rule-based analysis and alerts for 1-minute charts with a 1-minute expiry. Signa
 | Safe default | NO TRADE until a verified live feed passes every gate |
 | **Signal strategy** | **v2 exhaustion fade (default).** v1 trend rules lost on real history (48–49 %); v2 won 55.6 % on an untouched 2020 test period with on-time entry, 51.5 % one candle late. Full report: `docs/RESEARCH.md` |
 | Real-data research harness | `scripts/research/` runs the real engine over 3.87 M OANDA 1-minute candles (6 pairs, 2018-07 → 2020-05) with a fixed train / validation / test split |
+| v3 ML model (shadow only) | LightGBM, frozen; runs on every live scan beside v2 and is compared in Results; never alerts. Parity with the Python research verified to 1e-9 |
 | Strategy health monitor | Pauses signals when the recent win rate is clearly (95 % CI) below break-even; v1 kept for rollback |
 | Candle validation, freshness, gaps, look-ahead protection | Implemented and unit-tested |
 | Indicators: EMA, SMA, RSI (Wilder), MACD, Bollinger, ATR | Implemented; cross-checked against an independent pandas implementation |
@@ -100,7 +101,7 @@ signal-desk/
 │  ├─ components/                Dashboard, SignalCard, CandleChart, AnalysisBreakdown,
 │  │                             JournalPanel, BacktestPanel, ScreenshotPanel,
 │  │                             SourcesPanel, SettingsPanel, Performance
-│  └─ lib/
+│  └─ lib/   (ml/ = v3 shadow model: features.ts, model.ts, model-v3.json)
 │     ├─ types.ts
 │     ├─ config/rules.ts         all thresholds (zod-validated)
 │     ├─ validation/             candles (OHLC, gaps, freshness), image sniffing
@@ -205,7 +206,7 @@ Without any keys the app runs fully, shows **Live data unavailable**, and lets y
 |---|---|
 | `tsc --noEmit` (after `next typegen`) | exit 0, no errors |
 | `eslint .` | exit 0, no warnings |
-| `vitest run` | 11 files, **135 tests passed** (adds FADE_V2 engine, late-entry backtest, health monitor, tally and settings-migration tests) |
+| `vitest run` | 12 files, **216 tests passed** (FADE_V2 engine, late-entry backtest, health monitor, tally/settings migration, v3 model parity and shadow mode) |
 | `next build` | compiled; 18 routes generated |
 | `playwright test` | **12 passed** (desktop + 390 px mobile), Chromium from `@sparticuz/chromium` via `PW_CHROMIUM_PATH` because the Playwright CDN was blocked |
 | Research | v1 STRICT TEST 49.1 % (n = 57,995); v2 TEST 55.6 % (n = 4,420); details in `docs/RESEARCH.md` |
