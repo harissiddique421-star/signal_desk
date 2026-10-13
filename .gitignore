@@ -46,3 +46,7 @@ next-env.d.ts
 # test output
 /test-results/
 /playwright-report/
+
+# research outputs and downloaded history (see docs/RESEARCH.md)
+/research-out/
+/data/

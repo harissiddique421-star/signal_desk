@@ -1,4 +1,27 @@
-# Signal rules (rules-v1)
+# Signal rules
+
+Two rule versions ship. **v2 (`rules-v2-fade`, mode `V2`) is the default.** v1 (`rules-v1`, modes `STRICT` / `NORMAL`) is kept for comparison and rollback. Historical results for both are in [`RESEARCH.md`](RESEARCH.md).
+
+## v2 — exhaustion fade (`strategy: FADE_V2`)
+
+Same source and data gates as v1 (steps 1–2 below). Then, on the last **closed** candle:
+
+| Check id | Rule (default) |
+|---|---|
+| `fade.stretch` | up-candle closing above the upper Bollinger band (%B > 1), or down-candle closing below the lower band (%B < 0) |
+| `fade.range` | candle range ≥ `fadeMinRangeAtr` (2) × ATR(14) of the previous candle |
+| `fade.body` | body ≥ `fadeMinBodyRatio` (50 %) of the range |
+| `fade.rsi` | RSI(14) ≥ `fadeRsiExtreme` (70) after an up-candle, ≤ 30 after a down-candle |
+| `session.hours` | signal candle hour (UTC) not in `blockedHoursUtc` (21, 22, 23 — daily rollover) |
+| `timing.window` | evaluated within `entryWindowSeconds` (10) of the candle close |
+
+All pass → **PUT after the up-candle, CALL after the down-candle**, for the next 1-minute candle. Anything else → NO TRADE with the failed check named. v1's volatility/shock filters and trend gates are not applied in v2 (the trend evidence is still computed and shown). There is no score: a v2 signal either meets every rule or it does not.
+
+Historical result (OANDA, untouched TEST period Jan–May 2020): 55.6 % (95 % CI 54.1–57.1 %) with entry at the next candle's open; 51.5 % if entered one candle late. Break-even at 85 % payout is 54.05 %.
+
+## v1 — trend confluence (`strategy: TREND_V1`)
+
+On 3.87 M historical minutes v1 won 48–49 % (CI below 50 %) in every split. Not recommended.
 
 Signal Desk uses fixed, readable rules. Nothing is trained or fitted, and there is no hidden model. Every threshold lives in `src/lib/config/rules.ts` and can be overridden per request through the validated `rules` field of `POST /api/analyze`.
 

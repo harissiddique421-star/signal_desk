@@ -11,6 +11,9 @@ Rule-based analysis and alerts for 1-minute charts with a 1-minute expiry. Signa
 |---|---|
 | Dashboard (responsive, dark glass UI, Roman Urdu notes) | Implemented, E2E-tested on desktop and 390 px mobile |
 | Safe default | NO TRADE until a verified live feed passes every gate |
+| **Signal strategy** | **v2 exhaustion fade (default).** v1 trend rules lost on real history (48–49 %); v2 won 55.6 % on an untouched 2020 test period with on-time entry, 51.5 % one candle late. Full report: `docs/RESEARCH.md` |
+| Real-data research harness | `scripts/research/` runs the real engine over 3.87 M OANDA 1-minute candles (6 pairs, 2018-07 → 2020-05) with a fixed train / validation / test split |
+| Strategy health monitor | Pauses signals when the recent win rate is clearly (95 % CI) below break-even; v1 kept for rollback |
 | Candle validation, freshness, gaps, look-ahead protection | Implemented and unit-tested |
 | Indicators: EMA, SMA, RSI (Wilder), MACD, Bollinger, ATR | Implemented; cross-checked against an independent pandas implementation |
 | Price action, structure, S/R zones, breakout/retest/false-breakout, patterns, 5 m confirmation, volatility filters | Implemented and unit-tested |
@@ -18,7 +21,7 @@ Rule-based analysis and alerts for 1-minute charts with a 1-minute expiry. Signa
 | OTC live data | **Not available** — no permitted provider publishes broker OTC quotes. OTC analysis always returns NO TRADE |
 | News / economic-calendar filter | Hook implemented; **no provider configured** (signals carry a warning) |
 | Screenshot upload | Validation + preview implemented. **Interpretation not implemented** (no vision/OCR provider configured); screenshots are never stored |
-| Backtesting with in-sample / out-of-sample split | Implemented and tested |
+| Backtesting with in-sample / out-of-sample split | Implemented and tested; also scores every trade as if entered one candle late |
 | Performance stats (win rate + 95% CI, break-even, net units, streaks, drawdown) | Implemented and tested |
 | Accounts + saved journal (Supabase Auth magic link, Postgres + RLS) | Code and migration implemented; **RLS verified on real Postgres (PGlite)**; the end-to-end sign-in flow has **not** been run against a live Supabase project |
 | Audit log | Structured server logs always; `audit_logs` table (append-only under RLS) when signed in |
@@ -74,11 +77,13 @@ signal-desk/
 ├─ playwright.config.ts          E2E smoke config
 ├─ vitest.config.mts             unit + DB test config
 ├─ docs/
+│  ├─ RESEARCH.md                audit, loss analysis, v2 validation on real data
 │  ├─ SIGNAL_RULES.md            every rule, weight and threshold; what the score means
 │  ├─ DATA_SOURCES.md            provider research and how to add one
 │  └─ ANDROID.md                 PWA now, native app as a later phase
 ├─ public/                       PWA icons, service worker
 ├─ scripts/gen_indicator_fixture.py   independent pandas reference for indicator tests
+├─ scripts/research/             fetch-oanda.sh, ledger.ts (real engine over history), analyze.py, search_fade.py, compare.py
 ├─ supabase/migrations/20261013000000_init.sql
 ├─ src/
 │  ├─ app/
@@ -160,6 +165,7 @@ npm run dev             # http://localhost:3000
 npm run typecheck
 npm run lint
 npm test                # unit + database (RLS) tests
+# optional: re-run the real-data research (Python 3 + pandas) — see docs/RESEARCH.md
 npx playwright install chromium
 npm run build
 npm run test:e2e        # starts `next start` on port 3200 and runs the smoke test
@@ -197,18 +203,19 @@ Without any keys the app runs fully, shows **Live data unavailable**, and lets y
 
 | Check | Result |
 |---|---|
-| `tsc --noEmit` | exit 0, no errors |
+| `tsc --noEmit` (after `next typegen`) | exit 0, no errors |
 | `eslint .` | exit 0, no warnings |
-| `vitest run` | 8 files, **104 tests passed** — indicators 16, validation 12, analysis 15, signal engine 18, stats/backtest 10, providers 9, API 17, database RLS 7 |
-| `next build` | compiled; 16 routes generated |
-| `playwright test` | **6 passed** (smoke, overflow and manifest on desktop and 390 px mobile) |
+| `vitest run` | 11 files, **135 tests passed** (adds FADE_V2 engine, late-entry backtest, health monitor, tally and settings-migration tests) |
+| `next build` | compiled; 18 routes generated |
+| `playwright test` | **12 passed** (desktop + 390 px mobile), Chromium from `@sparticuz/chromium` via `PW_CHROMIUM_PATH` because the Playwright CDN was blocked |
+| Research | v1 STRICT TEST 49.1 % (n = 57,995); v2 TEST 55.6 % (n = 4,420); details in `docs/RESEARCH.md` |
 
-Notes: Playwright's own browser download was blocked in the build sandbox, so the E2E run used a separately supplied Chromium via `PW_CHROMIUM_PATH`. The Twelve Data adapter and the Supabase sign-in flow were not run against the live services.
+Notes: the Twelve Data adapter and the Supabase sign-in flow were not run against the live services.
 
 ## Known limitations and next steps
 
 1. Add a Twelve Data key and observe live freshness: Twelve Data may publish a finished minute a few seconds late, which the freshness gate will (correctly) report as NO TRADE. Tune `maxStalenessSeconds` / auto-refresh offset with real measurements.
-2. Collect resolved demo outcomes before trusting anything. The rules show **no demonstrated edge** on synthetic data (expected); only a large live sample, judged against the break-even win rate, can say otherwise.
+2. Collect resolved **demo** outcomes on the live feed before trusting anything. v2's historical edge is thin (+3 % of stake per trade with instant entry) and vanishes with a one-minute delay; Quotex prices differ from any market feed.
 3. Calibrate (or keep withholding) a confidence score once enough outcomes exist.
 4. Add an economic-calendar provider and wire it into `NewsContext`.
 5. Optional vision/OCR provider for screenshot interpretation, with strict "unreadable → NO TRADE" handling.
