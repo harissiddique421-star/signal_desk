@@ -11,6 +11,12 @@ export interface TrackedSignal {
   signalCandleTime: number;
   entryRef: number | null;
   mode: "STRICT" | "NORMAL";
+  /** AUTO = passed every rule; MANUAL = direction forced by the Generate button */
+  kind?: "AUTO" | "MANUAL";
+  /** Share of weighted evidence pointing this way, 0-100 (not a win probability) */
+  strength?: number;
+  /** Generate-button strength bucket */
+  label?: "Mazboot" | "Darmiyana" | "Kamzor";
   createdAt: number;
   status: "PENDING" | "RESOLVED" | "UNAVAILABLE";
   outcome?: Exclude<Outcome, "UNRESOLVED">;

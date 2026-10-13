@@ -15,6 +15,17 @@ import { ResultsTab } from "./ResultsTab";
 import { BacktestTab } from "./BacktestTab";
 
 type Tab = "signal" | "results" | "backtest" | "more";
+
+interface Generated {
+  pair: string;
+  dir: "CALL" | "PUT";
+  label: "Mazboot" | "Darmiyana" | "Kamzor";
+  agree: number;
+  total: number;
+  targetStart: number;
+  price: number | null;
+  reasons: string[];
+}
 const MAX_RETRIES = 3;
 
 export function SignalApp() {
@@ -33,6 +44,9 @@ export function SignalApp() {
   const [tracked, setTracked] = useState<TrackedSignal[]>([]);
   const [tab, setTab] = useState<Tab>("signal");
   const [showChart, setShowChart] = useState(false);
+  const [gen, setGen] = useState<Generated | null>(null);
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const loaded = useRef(false);
   const lastAlerted = useRef<string | null>(null);
 
@@ -152,6 +166,7 @@ export function SignalApp() {
                 signalCandleTime: res.signalCandleTime!,
                 entryRef: res.entryReference,
                 mode: settings.mode,
+                kind: "AUTO",
                 createdAt: res.analyzedAt,
                 status: "PENDING",
               },
@@ -165,6 +180,72 @@ export function SignalApp() {
     }
     return r.data;
   }, [provider, symbol, settings.mode, settings.sound, settleLocal]);
+
+  // ---- Generate button: always returns a direction for the NEXT candle -----------------
+  const generate = useCallback(async () => {
+    if (!provider || !symbol) return;
+    setGenBusy(true);
+    setGenError(null);
+    const r = await api<AnalyzeResponse>("/api/analyze", { method: "POST", json: { provider: provider.id, symbol, marketType: "LIVE", mode: settings.mode } });
+    setGenBusy(false);
+    if (!r.ok) {
+      setGenError(r.error);
+      return;
+    }
+    setAnalysis(r.data);
+    settleLocal(r.data);
+    const res = r.data.result;
+    const dataProblem = res.checks.find((c) => !c.passed && c.id.startsWith("data."));
+    if (!res.evidence.length || dataProblem) {
+      setGen(null);
+      setGenError(waitReason(res));
+      return;
+    }
+    const dir: "CALL" | "PUT" = res.agreementScore >= 0 ? "CALL" : "PUT";
+    const want = dir === "CALL" ? "BULLISH" : "BEARISH";
+    const agree = res.evidence.filter((e) => e.direction === want).length;
+    const label: Generated["label"] = res.decision !== "NO_TRADE" ? "Mazboot" : Math.abs(res.agreementScore) >= 0.3 ? "Darmiyana" : "Kamzor";
+    const serverMs = Date.now() + offset;
+    const formingStart = Math.floor(serverMs / 60_000) * 60_000;
+    const g: Generated = {
+      pair: res.symbol,
+      dir,
+      label,
+      agree,
+      total: res.evidence.length,
+      targetStart: formingStart + 60_000,
+      price: res.entryReference,
+      reasons: evidenceChips(res.evidence, want).slice(0, 5),
+    };
+    setGen(g);
+    if (settings.sound) playSignalTone(dir);
+    if (res.analysisKind === "LIVE_FEED") {
+      const id = `${res.symbol}-m-${formingStart}`;
+      setTracked((list) =>
+        list.some((t) => t.id === id)
+          ? list
+          : [
+              {
+                id,
+                pair: res.symbol,
+                provider: provider.id,
+                marketType: "LIVE",
+                decision: dir,
+                // resolver settles the candle after this one = the candle starting at targetStart
+                signalCandleTime: formingStart,
+                entryRef: res.entryReference,
+                mode: settings.mode,
+                kind: "MANUAL",
+                label,
+                strength: Math.round((agree / Math.max(1, res.evidence.length)) * 100),
+                createdAt: serverMs,
+                status: "PENDING",
+              },
+              ...list,
+            ],
+      );
+    }
+  }, [provider, symbol, settings.mode, settings.sound, settleLocal, offset]);
 
   const scanRef = useRef(scanOnce);
   useEffect(() => {
@@ -358,6 +439,37 @@ export function SignalApp() {
               {error}
             </p>
           )}
+
+          {/* Generate */}
+          <section aria-label="Agli candle ka signal" className="mt-4">
+            <button className="btn btn-primary w-full text-base" disabled={!provider || !symbol || genBusy} onClick={() => void generate()}>
+              {genBusy ? "Market dekh raha hai…" : "🎯 Agli candle ka signal nikalein"}
+            </button>
+            {genError && <p role="alert" className="mt-2 text-center text-sm text-put">{genError}</p>}
+            {gen && gen.pair === symbol && (
+              <div className="glass-quiet mt-3 p-4 text-center" data-testid="generated">
+                {!live && <p className="mb-2 rounded bg-warn/10 px-2 py-1 text-xs text-warn">Sample (nakli) data — asli market nahin</p>}
+                <p className="text-sm text-muted">{gen.pair} — {fmtTime(gen.targetStart)} wali candle</p>
+                <p className={`verdict mt-1 text-5xl ${gen.dir === "CALL" ? "text-call" : "text-put"}`}>{gen.dir === "CALL" ? "▲ UP" : "▼ DOWN"}</p>
+                <p className="mt-2 text-sm">
+                  Taaqat:{" "}
+                  <span className={gen.label === "Mazboot" ? "font-semibold text-call" : gen.label === "Darmiyana" ? "font-semibold text-warn" : "font-semibold text-put"}>{gen.label}</span>{" "}
+                  <span className="text-muted">
+                    ({gen.agree}/{gen.total} indicators)
+                  </span>
+                </p>
+                {now > 0 && gen.targetStart > serverNow ? (
+                  <p className="mt-1 text-sm text-cyan">Candle shuru hone mein {Math.ceil((gen.targetStart - serverNow) / 1000)}s — tab entry lein, expiry 1 minute</p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted">Yeh candle shuru ho chuki — naye signal ke liye dobara dabayein</p>
+                )}
+                {gen.reasons.length > 0 && <p className="mt-2 text-xs text-muted">Haq mein: {gen.reasons.join(", ")}</p>}
+                <p className="mt-3 text-xs text-faint">
+                  Yeh hamesha ek direction deta hai, chahe market saaf na ho. &quot;Kamzor&quot; signal aksar sikka uchhalne jaisa hota hai. In ka asli record Results mein alag dikhta hai.
+                </p>
+              </div>
+            )}
+          </section>
 
           {/* Today */}
           <button onClick={() => setTab("results")} className="glass-quiet mt-4 flex items-center justify-between px-4 py-3 text-left">

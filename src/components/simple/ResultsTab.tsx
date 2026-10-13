@@ -68,6 +68,12 @@ export function ResultsTab(props: {
   }, []);
 
   const decided = report.wins + report.losses;
+  const groups: [string, TrackedSignal[]][] = [
+    ["Auto signal (sab shartein poori)", list.filter((t) => (t.kind ?? "AUTO") === "AUTO")],
+    ["Generate — Mazboot", list.filter((t) => t.kind === "MANUAL" && t.label === "Mazboot")],
+    ["Generate — Darmiyana", list.filter((t) => t.kind === "MANUAL" && t.label === "Darmiyana")],
+    ["Generate — Kamzor", list.filter((t) => t.kind === "MANUAL" && t.label === "Kamzor")],
+  ];
 
   return (
     <section className="mt-5 space-y-5">
@@ -102,6 +108,22 @@ export function ResultsTab(props: {
         </p>
       </div>
 
+      <div className="glass-quiet divide-y divide-white/5 text-sm">
+        {groups.map(([name, items]) => {
+          const w = items.filter((t) => t.outcome === "WIN").length;
+          const l = items.filter((t) => t.outcome === "LOSS").length;
+          return (
+            <div key={name} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-muted">{name}</span>
+              <span>
+                <span className="text-call">{w}</span>/<span className="text-put">{l}</span>
+                <span className="ml-2 font-semibold">{w + l ? `${Math.round((w / (w + l)) * 100)}%` : "—"}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
       <p className="text-xs text-faint">
         Nateeja live feed ki agli candle se khud nikalta hai (entry = candle ka open, expiry = close). Quotex ki price thori mukhtalif ho sakti hai, is liye apne demo trade se bhi milayein.
         {decided < 30 && decided > 0 ? " Abhi trades kam hain — itne se andaza pakka nahin." : ""}
@@ -118,6 +140,7 @@ export function ResultsTab(props: {
               <div>
                 <p className="font-semibold">
                   <span className={t.decision === "CALL" ? "text-call" : "text-put"}>{t.decision === "CALL" ? "▲ BUY" : "▼ SELL"}</span> {t.pair}
+                  {t.kind === "MANUAL" && <span className="ml-2 rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-muted">{t.label ?? "Generate"}</span>}
                 </p>
                 <p className="text-xs text-muted">
                   {fmtTime(t.signalCandleTime + 60_000)} entry{t.entry ? `, ${fmtPrice(t.entry)} → ${fmtPrice(t.exit)}` : t.entryRef ? `, ~${fmtPrice(t.entryRef)}` : ""}

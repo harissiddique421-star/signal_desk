@@ -14,6 +14,16 @@ test.describe("Simple signal screen", () => {
     expect(errors).toEqual([]);
   });
 
+  test("generate button always gives a direction for the next candle", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByText(/Price .* candle/)).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /Agli candle ka signal/ }).click();
+    await expect(page.getByTestId("generated")).toBeVisible();
+    await expect(page.getByTestId("generated")).toContainText(/UP|DOWN/);
+    await expect(page.getByTestId("generated")).toContainText(/Mazboot|Darmiyana|Kamzor/);
+    await expect(page.getByTestId("generated")).toContainText(/Sample \(nakli\) data/);
+  });
+
   test("tabs: results, backtest, more", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Results", exact: true }).click();
