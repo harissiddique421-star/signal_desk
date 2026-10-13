@@ -1,7 +1,7 @@
 import type { Check, Evidence, SignalResult } from "../types";
 
 /** Plain Roman Urdu reasons for the simple screen. */
-const CHECK_TEXT: Record<string, string> = {
+export const CHECK_TEXT: Record<string, string> = {
   "source.verified": "Live data connected nahin (sirf sample data).",
   "source.marketType": "OTC ka live data kisi jaiz source se mojood nahin.",
   "source.symbol": "Yeh pair is data source mein nahin.",
@@ -23,6 +23,12 @@ const CHECK_TEXT: Record<string, string> = {
   "decision.doji": "Aakhri candle doji hai — market ne faisla nahin kiya.",
   "decision.level": "Saamne support/resistance bilkul qareeb hai.",
   "timing.window": "Entry ka waqt nikal gaya — agli candle ka intezar.",
+  "fade.stretch": "Koi khinchi hui candle nahin (price Bollinger band ke andar hai).",
+  "fade.range": "Aakhri candle itni bari nahin ke wapsi ka chance ho.",
+  "fade.body": "Aakhri candle ki body kamzor hai (zyada wick).",
+  "fade.rsi": "RSI hadd tak nahin pohncha.",
+  "session.hours": "Is waqt (rollover) data patla hota hai — signal band.",
+  "health.degraded": "Haal ke nataij break-even se saaf neeche hain — signals ruke hue hain.",
 };
 
 export function waitReason(r: SignalResult): string {
@@ -46,6 +52,7 @@ const SHORT: Record<string, string> = {
   "momentum.rsi": "RSI",
   "bands.position": "Bollinger",
   "mtf.trend": "5-min trend",
+  "setup.fade": "Stretched candle → wapsi",
 };
 
 export function evidenceChips(evidence: Evidence[], dir: "BULLISH" | "BEARISH") {

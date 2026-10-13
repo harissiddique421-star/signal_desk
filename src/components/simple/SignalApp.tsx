@@ -5,8 +5,10 @@ import Link from "next/link";
 import type { AnalyzeResponse, HealthResponse, SymbolsResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
 import { fmtPrice, fmtTime } from "@/lib/client/format";
-import { DEFAULT_SIMPLE, simpleSettingsStore, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
-import { agreementCount, evidenceChips, onlyTimingFailed, waitReason } from "@/lib/client/simple-text";
+import { autoOutcomes, DEFAULT_SIMPLE, simpleSettingsStore, todaysTally, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
+import { MODE_LABEL, SIGNAL_MODES } from "@/lib/config/presets";
+import { assessStrategyHealth } from "@/lib/stats/monitor";
+import { agreementCount, CHECK_TEXT, evidenceChips, onlyTimingFailed, waitReason } from "@/lib/client/simple-text";
 import { playSignalTone, unlockAudio } from "@/lib/client/sound";
 import { resolveSignal } from "@/lib/stats/resolve";
 import type { ProviderSymbol } from "@/lib/types";
@@ -16,16 +18,6 @@ import { BacktestTab } from "./BacktestTab";
 
 type Tab = "signal" | "results" | "backtest" | "more";
 
-interface Generated {
-  pair: string;
-  dir: "CALL" | "PUT";
-  label: "Mazboot" | "Darmiyana" | "Kamzor";
-  agree: number;
-  total: number;
-  targetStart: number;
-  price: number | null;
-  reasons: string[];
-}
 const MAX_RETRIES = 3;
 
 export function SignalApp() {
@@ -44,9 +36,7 @@ export function SignalApp() {
   const [tracked, setTracked] = useState<TrackedSignal[]>([]);
   const [tab, setTab] = useState<Tab>("signal");
   const [showChart, setShowChart] = useState(false);
-  const [gen, setGen] = useState<Generated | null>(null);
-  const [genBusy, setGenBusy] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
+  const [checkBusy, setCheckBusy] = useState(false);
   const loaded = useRef(false);
   const lastAlerted = useRef<string | null>(null);
 
@@ -137,6 +127,14 @@ export function SignalApp() {
     );
   }, []);
 
+  // ---- degradation monitor: pause signals when recent results are clearly below break-even ----
+  const stratHealth = useMemo(() => assessStrategyHealth(autoOutcomes(tracked, settings.mode), settings.payoutPercent / 100), [tracked, settings.mode, settings.payoutPercent]);
+  const paused = stratHealth.status === "DEGRADED" && !settings.ignoreHealth;
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
   // ---- live scan loop: every minute, 4 s after the candle closes ---------------
   const scanOnce = useCallback(async (): Promise<AnalyzeResponse | null> => {
     if (!provider || !symbol) return null;
@@ -151,7 +149,7 @@ export function SignalApp() {
     setAnalysis(r.data);
     settleLocal(r.data);
     const res = r.data.result;
-    if (res.decision !== "NO_TRADE" && res.analysisKind === "LIVE_FEED" && res.signalCandleTime) {
+    if (res.decision !== "NO_TRADE" && res.analysisKind === "LIVE_FEED" && res.signalCandleTime && !pausedRef.current) {
       const id = `${res.symbol}-${res.signalCandleTime}`;
       setTracked((list) =>
         list.some((t) => t.id === id)
@@ -166,6 +164,7 @@ export function SignalApp() {
                 signalCandleTime: res.signalCandleTime!,
                 entryRef: res.entryReference,
                 mode: settings.mode,
+                ruleVersion: res.ruleVersion,
                 kind: "AUTO",
                 createdAt: res.analyzedAt,
                 status: "PENDING",
@@ -181,71 +180,14 @@ export function SignalApp() {
     return r.data;
   }, [provider, symbol, settings.mode, settings.sound, settleLocal]);
 
-  // ---- Generate button: always returns a direction for the NEXT candle -----------------
-  const generate = useCallback(async () => {
-    if (!provider || !symbol) return;
-    setGenBusy(true);
-    setGenError(null);
-    const r = await api<AnalyzeResponse>("/api/analyze", { method: "POST", json: { provider: provider.id, symbol, marketType: "LIVE", mode: settings.mode } });
-    setGenBusy(false);
-    if (!r.ok) {
-      setGenError(r.error);
-      return;
-    }
-    setAnalysis(r.data);
-    settleLocal(r.data);
-    const res = r.data.result;
-    const dataProblem = res.checks.find((c) => !c.passed && c.id.startsWith("data."));
-    if (!res.evidence.length || dataProblem) {
-      setGen(null);
-      setGenError(waitReason(res));
-      return;
-    }
-    const dir: "CALL" | "PUT" = res.agreementScore >= 0 ? "CALL" : "PUT";
-    const want = dir === "CALL" ? "BULLISH" : "BEARISH";
-    const agree = res.evidence.filter((e) => e.direction === want).length;
-    const label: Generated["label"] = res.decision !== "NO_TRADE" ? "Mazboot" : Math.abs(res.agreementScore) >= 0.3 ? "Darmiyana" : "Kamzor";
-    const serverMs = Date.now() + offset;
-    const formingStart = Math.floor(serverMs / 60_000) * 60_000;
-    const g: Generated = {
-      pair: res.symbol,
-      dir,
-      label,
-      agree,
-      total: res.evidence.length,
-      targetStart: formingStart + 60_000,
-      price: res.entryReference,
-      reasons: evidenceChips(res.evidence, want).slice(0, 5),
-    };
-    setGen(g);
-    if (settings.sound) playSignalTone(dir);
-    if (res.analysisKind === "LIVE_FEED") {
-      const id = `${res.symbol}-m-${formingStart}`;
-      setTracked((list) =>
-        list.some((t) => t.id === id)
-          ? list
-          : [
-              {
-                id,
-                pair: res.symbol,
-                provider: provider.id,
-                marketType: "LIVE",
-                decision: dir,
-                // resolver settles the candle after this one = the candle starting at targetStart
-                signalCandleTime: formingStart,
-                entryRef: res.entryReference,
-                mode: settings.mode,
-                kind: "MANUAL",
-                label,
-                strength: Math.round((agree / Math.max(1, res.evidence.length)) * 100),
-                createdAt: serverMs,
-                status: "PENDING",
-              },
-              ...list,
-            ],
-      );
-    }
-  }, [provider, symbol, settings.mode, settings.sound, settleLocal, offset]);
+  // ---- "Check now": same rules as the auto scan, on demand. It never forces a direction:
+  // the old Generate button always answered UP or DOWN, and on 3.87 M historical minutes
+  // those forced answers were right 48.5–49.8 % of the time (a coin flip, minus the payout).
+  const checkNow = useCallback(async () => {
+    setCheckBusy(true);
+    await scanOnce();
+    setCheckBusy(false);
+  }, [scanOnce]);
 
   const scanRef = useRef(scanOnce);
   useEffect(() => {
@@ -288,12 +230,10 @@ export function SignalApp() {
   const tradable = result && result.decision !== "NO_TRADE";
   const windowLeft = result?.entryWindowEnd && now ? Math.ceil((result.entryWindowEnd - serverNow) / 1000) : null;
   const expired = tradable && windowLeft !== null && windowLeft <= 0;
-  const showSignal = tradable && !expired;
+  const showSignal = tradable && !expired && !paused;
   const verdict: "BUY" | "SELL" | "WAIT" = showSignal ? (result!.decision === "CALL" ? "BUY" : "SELL") : "WAIT";
   const nextIn = nextScanAt && now ? Math.max(0, Math.ceil((nextScanAt - now) / 1000)) : null;
-  const todays = tracked.filter((t) => new Date(t.createdAt).toDateString() === new Date(serverNow).toDateString());
-  const wins = todays.filter((t) => t.outcome === "WIN").length;
-  const losses = todays.filter((t) => t.outcome === "LOSS").length;
+  const { wins, losses } = todaysTally(tracked, serverNow, settings.mode);
 
   const theme = {
     BUY: { color: "#3FDCA0", glow: "rgba(63,220,160,0.22)", border: "rgba(63,220,160,0.55)", arrow: "▲" },
@@ -307,6 +247,9 @@ export function SignalApp() {
     subline = healthError ? "Server se rabta nahin ho raha" : "Data source dhoondh rahe hain…";
   } else if (!result) {
     subline = scanning ? "Market analyse ho rahi hai…" : error ? "Analysis nahin ho saka" : "Shuru ho raha hai…";
+  } else if (tradable && paused) {
+    subline = "Signal mila, lekin strategy abhi ruki hui hai";
+    reason = CHECK_TEXT["health.degraded"];
   } else if (showSignal) {
     subline = verdict === "BUY" ? "Quotex par UP (CALL) — 1 minute expiry" : "Quotex par DOWN (PUT) — 1 minute expiry";
   } else if (expired) {
@@ -317,7 +260,8 @@ export function SignalApp() {
     reason = onlyTimingFailed(result.checks) ? "Agli candle close hone par dobara check hoga." : waitReason(result);
   }
 
-  const agree = result && result.evidence.length ? agreementCount(result) : null;
+  // The indicator-agreement bar describes the v1 trend rules; a v2 fade deliberately trades against them.
+  const agree = result && result.evidence.length && settings.mode !== "V2" ? agreementCount(result) : null;
   const chips = showSignal && result ? evidenceChips(result.evidence, result.decision === "CALL" ? "BULLISH" : "BEARISH").slice(0, 6) : [];
 
   return (
@@ -429,7 +373,7 @@ export function SignalApp() {
 
             {result && (
               <p className="mt-5 text-xs text-faint">
-                Price {fmtPrice(result.entryReference)} — candle {fmtTime(result.signalCandleTime)} — {settings.mode === "NORMAL" ? "Normal" : "Strict"} mode
+                Price {fmtPrice(result.entryReference)} — candle {fmtTime(result.signalCandleTime)} — {MODE_LABEL[settings.mode]} ({result.ruleVersion})
               </p>
             )}
           </section>
@@ -440,36 +384,26 @@ export function SignalApp() {
             </p>
           )}
 
-          {/* Generate */}
-          <section aria-label="Agli candle ka signal" className="mt-4">
-            <button className="btn btn-primary w-full text-base" disabled={!provider || !symbol || genBusy} onClick={() => void generate()}>
-              {genBusy ? "Market dekh raha hai…" : "🎯 Agli candle ka signal nikalein"}
+          {/* Check now */}
+          <section aria-label="Abhi check karein" className="mt-4">
+            <button className="btn btn-primary w-full text-base" disabled={!provider || !symbol || checkBusy || scanning} onClick={() => void checkNow()}>
+              {checkBusy ? "Market dekh raha hai…" : "🎯 Abhi check karein"}
             </button>
-            {genError && <p role="alert" className="mt-2 text-center text-sm text-put">{genError}</p>}
-            {gen && gen.pair === symbol && (
-              <div className="glass-quiet mt-3 p-4 text-center" data-testid="generated">
-                {!live && <p className="mb-2 rounded bg-warn/10 px-2 py-1 text-xs text-warn">Sample (nakli) data — asli market nahin</p>}
-                <p className="text-sm text-muted">{gen.pair} — {fmtTime(gen.targetStart)} wali candle</p>
-                <p className={`verdict mt-1 text-5xl ${gen.dir === "CALL" ? "text-call" : "text-put"}`}>{gen.dir === "CALL" ? "▲ UP" : "▼ DOWN"}</p>
-                <p className="mt-2 text-sm">
-                  Taaqat:{" "}
-                  <span className={gen.label === "Mazboot" ? "font-semibold text-call" : gen.label === "Darmiyana" ? "font-semibold text-warn" : "font-semibold text-put"}>{gen.label}</span>{" "}
-                  <span className="text-muted">
-                    ({gen.agree}/{gen.total} indicators)
-                  </span>
-                </p>
-                {now > 0 && gen.targetStart > serverNow ? (
-                  <p className="mt-1 text-sm text-cyan">Candle shuru hone mein {Math.ceil((gen.targetStart - serverNow) / 1000)}s — tab entry lein, expiry 1 minute</p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted">Yeh candle shuru ho chuki — naye signal ke liye dobara dabayein</p>
-                )}
-                {gen.reasons.length > 0 && <p className="mt-2 text-xs text-muted">Haq mein: {gen.reasons.join(", ")}</p>}
-                <p className="mt-3 text-xs text-faint">
-                  Yeh hamesha ek direction deta hai, chahe market saaf na ho. &quot;Kamzor&quot; signal aksar sikka uchhalne jaisa hota hai. In ka asli record Results mein alag dikhta hai.
-                </p>
-              </div>
-            )}
+            <p className="mt-2 text-center text-xs text-faint">
+              Sirf tab BUY/SELL deta hai jab poora setup mojood ho. Zabardasti direction ab nahin di jaati — asli data par wo ~49% sahi thi.
+            </p>
           </section>
+
+          {stratHealth.status !== "INSUFFICIENT" && stratHealth.status !== "OK" && (
+            <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-sm ${stratHealth.status === "DEGRADED" ? "bg-put/10 text-put" : "bg-warn/10 text-warn"}`} data-testid="health">
+              {stratHealth.detailUr}
+              {stratHealth.status === "DEGRADED" && (
+                <button className="ml-2 underline" onClick={() => setSettings({ ...settings, ignoreHealth: true })}>
+                  Phir bhi dikhayein
+                </button>
+              )}
+            </p>
+          )}
 
           {/* Today */}
           <button onClick={() => setTab("results")} className="glass-quiet mt-4 flex items-center justify-between px-4 py-3 text-left">
@@ -482,24 +416,27 @@ export function SignalApp() {
           {/* Controls */}
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="seg" role="group" aria-label="Signal mode">
-              {(["NORMAL", "STRICT"] as const).map((m) => (
-                <button key={m} aria-pressed={settings.mode === m} onClick={() => setSettings({ ...settings, mode: m })}>
-                  {m === "NORMAL" ? "Normal" : "Strict"}
+              {SIGNAL_MODES.map((m) => (
+                <button key={m} className="whitespace-nowrap text-sm" aria-pressed={settings.mode === m} onClick={() => setSettings({ ...settings, mode: m, ignoreHealth: false })}>
+                  {m === "V2" ? "v2" : m === "STRICT" ? "v1 Strict" : "v1 Normal"}
                 </button>
               ))}
             </div>
             <button
-              className="btn btn-ghost text-sm"
+              className="btn btn-ghost shrink-0 whitespace-nowrap px-3 text-sm"
               aria-pressed={settings.sound}
+              aria-label={settings.sound ? "Awaaz on" : "Awaaz off"}
               onClick={() => {
                 if (!settings.sound) unlockAudio();
                 setSettings({ ...settings, sound: !settings.sound });
               }}
             >
-              {settings.sound ? "🔔 Awaaz on" : "🔕 Awaaz off"}
+              {settings.sound ? "🔔 On" : "🔕 Off"}
             </button>
           </div>
-          <p className="mt-2 text-xs text-faint">Normal: zyada signal. Strict: kam lekin zyada sakht shartein. Dono ko Backtest mein compare karein.</p>
+          <p className="mt-2 text-xs text-faint">
+            v2: naya, test shuda (bahut kam signal). v1 Strict/Normal: purane rules — 38 lakh asli candles par 48–49% jeet, yani ghaata. Sirf muqabla karne ke liye rakhe gaye hain.
+          </p>
 
           {analysis?.chart && (
             <div className="mt-4">
@@ -517,7 +454,7 @@ export function SignalApp() {
       )}
 
       {tab === "results" && (
-        <ResultsTab tracked={tracked} setTracked={setTracked} payout={settings.payoutPercent / 100} now={serverNow} live={live} />
+        <ResultsTab tracked={tracked} setTracked={setTracked} payout={settings.payoutPercent / 100} now={serverNow} live={live} mode={settings.mode} />
       )}
       {tab === "backtest" && <BacktestTab provider={provider?.id ?? null} symbol={symbol} mode={settings.mode} payout={settings.payoutPercent / 100} live={live} />}
       {tab === "more" && (
@@ -542,9 +479,11 @@ export function SignalApp() {
             <h2 className="font-semibold">Yeh kaise kaam karta hai</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
               <li>Har minute candle band hote hi app khud market check karta hai.</li>
-              <li>Trend, 5-minute trend, RSI, MACD, Bollinger, support/resistance aur candle patterns ek saath dekhe jaate hain.</li>
-              <li>Sab shartein poori hon to BUY ya SELL, warna WAIT.</li>
-              <li>Signal ke baad agli candle ka nateeja app khud WIN/LOSS likhta hai.</li>
+              <li>v2: jab ek bari, mazboot candle Bollinger band se bahar band ho aur RSI hadd par ho, to agli candle ke liye ulti taraf (wapsi) ka signal.</li>
+              <li>Data purana, adhoora ya ghalat ho to hamesha WAIT.</li>
+              <li>Entry candle shuru hote hi lein — der se entry par yeh edge khatam ho jata hai.</li>
+              <li>Signal ke baad agli candle (open → close) ka nateeja app khud WIN/LOSS likhta hai. Quotex ka asli nateeja aapki entry ke waqt aur unki price par depend karta hai, is liye thora alag ho sakta hai.</li>
+              <li>Agar haal ke nataij break-even se saaf neeche chale jayen to signals khud ruk jaate hain.</li>
             </ul>
           </div>
           <div>

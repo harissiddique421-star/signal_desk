@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client/api";
 import { fmtPct, fmtPrice, fmtTime } from "@/lib/client/format";
-import type { TrackedSignal } from "@/lib/client/signals-store";
+import { autoOutcomes, type TrackedSignal } from "@/lib/client/signals-store";
+import { MODE_LABEL, SIGNAL_MODES, type SignalMode } from "@/lib/config/presets";
+import { assessStrategyHealth } from "@/lib/stats/monitor";
 import { summarize } from "@/lib/stats/performance";
 import type { Resolution } from "@/lib/stats/resolve";
 
@@ -15,8 +17,9 @@ export function ResultsTab(props: {
   payout: number;
   now: number;
   live: boolean;
+  mode: SignalMode;
 }) {
-  const { tracked, setTracked, payout, now, live } = props;
+  const { tracked, setTracked, payout, now, live, mode } = props;
   const [range, setRange] = useState<Range>("today");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -25,7 +28,11 @@ export function ResultsTab(props: {
     () => (range === "today" ? tracked.filter((t) => new Date(t.createdAt).toDateString() === new Date(now).toDateString()) : tracked),
     [tracked, range, now],
   );
-  const report = useMemo(() => summarize(list.map((t) => ({ time: t.createdAt, outcome: t.outcome ?? "UNRESOLVED" })), payout), [list, payout]);
+  // Headline = rule-based (AUTO) signals of the selected strategy only. Other versions and the
+  // old forced Generate answers are listed separately below so they cannot blur the headline.
+  const headline = useMemo(() => list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode), [list, mode]);
+  const report = useMemo(() => summarize(headline.map((t) => ({ time: t.createdAt, outcome: t.outcome ?? "UNRESOLVED" })), payout), [headline, payout]);
+  const health = useMemo(() => assessStrategyHealth(autoOutcomes(tracked, mode), payout), [tracked, mode, payout]);
 
   // Settle pending signals (for any pair) whose trade candle has closed.
   const settle = useCallback(async () => {
@@ -69,11 +76,9 @@ export function ResultsTab(props: {
 
   const decided = report.wins + report.losses;
   const groups: [string, TrackedSignal[]][] = [
-    ["Auto signal (sab shartein poori)", list.filter((t) => (t.kind ?? "AUTO") === "AUTO")],
-    ["Generate — Mazboot", list.filter((t) => t.kind === "MANUAL" && t.label === "Mazboot")],
-    ["Generate — Darmiyana", list.filter((t) => t.kind === "MANUAL" && t.label === "Darmiyana")],
-    ["Generate — Kamzor", list.filter((t) => t.kind === "MANUAL" && t.label === "Kamzor")],
-  ];
+    ...SIGNAL_MODES.map((m): [string, TrackedSignal[]] => [MODE_LABEL[m], list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === m)]),
+    ["Purana Generate (zabardasti direction)", list.filter((t) => t.kind === "MANUAL")],
+  ].filter(([, items]) => items.length > 0) as [string, TrackedSignal[]][];
 
   return (
     <section className="mt-5 space-y-5">
@@ -89,6 +94,7 @@ export function ResultsTab(props: {
         </div>
       </div>
 
+      <p className="text-xs text-muted">Upar ke numbers: sirf {MODE_LABEL[mode]} ke auto signals.</p>
       <div className="glass grid grid-cols-3 gap-2 p-4 text-center">
         <div>
           <p className="text-2xl font-semibold text-call">{report.wins}</p>
@@ -103,29 +109,36 @@ export function ResultsTab(props: {
           <p className="text-xs text-muted">Jeet ki sharah</p>
         </div>
         <p className="col-span-3 mt-2 text-xs text-faint">
+          {report.winRateCi95 && decided >= 20 ? `95% yaqeeni range ${fmtPct(report.winRateCi95[0], 0)}–${fmtPct(report.winRateCi95[1], 0)}. ` : ""}
           {report.ties} tie, {report.unresolved} pending. {payout * 100}% payout par barabar rehne ke liye {fmtPct(report.breakEvenWinRate)} chahiye. Net: {report.netUnits > 0 ? "+" : ""}
           {report.netUnits.toFixed(2)} trade-stake.
         </p>
       </div>
 
-      <div className="glass-quiet divide-y divide-white/5 text-sm">
-        {groups.map(([name, items]) => {
-          const w = items.filter((t) => t.outcome === "WIN").length;
-          const l = items.filter((t) => t.outcome === "LOSS").length;
-          return (
-            <div key={name} className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-muted">{name}</span>
-              <span>
-                <span className="text-call">{w}</span>/<span className="text-put">{l}</span>
-                <span className="ml-2 font-semibold">{w + l ? `${Math.round((w / (w + l)) * 100)}%` : "—"}</span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <p className={`text-sm ${health.status === "DEGRADED" ? "text-put" : health.status === "WATCH" ? "text-warn" : "text-muted"}`} data-testid="strategy-health">
+        Strategy ki sehat: {health.detailUr}
+      </p>
+
+      {groups.length > 0 && (
+        <div className="glass-quiet divide-y divide-white/5 text-sm">
+          {groups.map(([name, items]) => {
+            const w = items.filter((t) => t.outcome === "WIN").length;
+            const l = items.filter((t) => t.outcome === "LOSS").length;
+            return (
+              <div key={name} className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-muted">{name}</span>
+                <span>
+                  <span className="text-call">{w}</span>/<span className="text-put">{l}</span>
+                  <span className="ml-2 font-semibold">{w + l ? `${Math.round((w / (w + l)) * 100)}%` : "—"}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <p className="text-xs text-faint">
-        Nateeja live feed ki agli candle se khud nikalta hai (entry = candle ka open, expiry = close). Quotex ki price thori mukhtalif ho sakti hai, is liye apne demo trade se bhi milayein.
+        Nateeja live feed ki agli candle se khud nikalta hai (entry = candle ka open, expiry = close). Aap 5–15 second baad entry lete hain aur Quotex ki apni price hoti hai, is liye asli nateeja mukhtalif ho sakta hai — apne demo trade se zaroor milayein. Research mein ek minute der se entry par v2 ki jeet 55.6% se gir kar 51.5% reh gayi thi.
         {decided < 30 && decided > 0 ? " Abhi trades kam hain — itne se andaza pakka nahin." : ""}
       </p>
       {busy && <p className="text-sm text-muted">Results check ho rahe hain…</p>}

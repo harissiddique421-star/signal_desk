@@ -14,14 +14,15 @@ test.describe("Simple signal screen", () => {
     expect(errors).toEqual([]);
   });
 
-  test("generate button always gives a direction for the next candle", async ({ page }) => {
+  // Regression: the old Generate button forced UP/DOWN even when the rules said NO TRADE
+  // (≈49 % on real history). "Check now" runs the same rules and never forces a direction.
+  test("check-now button runs the rules and never forces a direction", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByText(/Price .* candle/)).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: /Agli candle ka signal/ }).click();
-    await expect(page.getByTestId("generated")).toBeVisible();
-    await expect(page.getByTestId("generated")).toContainText(/UP|DOWN/);
-    await expect(page.getByTestId("generated")).toContainText(/Mazboot|Darmiyana|Kamzor/);
-    await expect(page.getByTestId("generated")).toContainText(/Sample \(nakli\) data/);
+    await expect(page.getByText(/v2 Fade \(tested\)/)).toBeVisible();
+    await page.getByRole("button", { name: /Abhi check karein/ }).click();
+    await expect(page.getByTestId("verdict")).toHaveText(/WAIT/);
+    await expect(page.getByTestId("generated")).toHaveCount(0);
   });
 
   test("tabs: results, backtest, more", async ({ page }) => {

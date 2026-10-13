@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MODE_LABEL, type SignalMode } from "@/lib/config/presets";
 import type { BacktestResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
 import { fmtPct, fmtTime } from "@/lib/client/format";
@@ -13,7 +14,7 @@ const PERIODS = [
   { label: "3 din", count: 4320 },
 ];
 
-export function BacktestTab({ provider, symbol, mode, payout, live }: { provider: string | null; symbol: string | null; mode: "STRICT" | "NORMAL"; payout: number; live: boolean }) {
+export function BacktestTab({ provider, symbol, mode, payout, live }: { provider: string | null; symbol: string | null; mode: SignalMode; payout: number; live: boolean }) {
   const [count, setCount] = useState(1440);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
         ))}
       </div>
       <button className="btn btn-primary w-full" disabled={!provider || !symbol || busy} onClick={() => void run()}>
-        {busy ? "Test ho raha hai…" : `${symbol ?? ""} par backtest chalayein (${mode === "NORMAL" ? "Normal" : "Strict"})`}
+        {busy ? "Test ho raha hai…" : `${symbol ?? ""} par backtest chalayein (${MODE_LABEL[mode]})`}
       </button>
       {error && <p role="alert" className="text-sm text-put">{error}</p>}
 
@@ -88,6 +89,12 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
             Net: {o.netUnits > 0 ? "+" : ""}
             {o.netUnits.toFixed(1)} stake. Sab se lambi haar ki series: {o.maxLosingStreak}.
           </p>
+          {data.result.overallLate && data.result.overallLate.wins + data.result.overallLate.losses > 0 && (
+            <p className="text-sm text-muted" data-testid="late-entry">
+              Agar entry ek candle der se lein: jeet {fmtPct(data.result.overallLate.winRate, 0)}, net {data.result.overallLate.netUnits > 0 ? "+" : ""}
+              {data.result.overallLate.netUnits.toFixed(1)} stake. Asli entry (kuch second ki der) in dono ke darmiyan hoti hai.
+            </p>
+          )}
           {o.equityCurve.length > 1 && <EquityLine curve={o.equityCurve} label="Backtest ka cumulative nateeja" />}
           {trades.length > 0 && (
             <div>
