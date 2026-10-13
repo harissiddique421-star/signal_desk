@@ -64,6 +64,8 @@ export const JournalCreateSchema = z.strictObject({
 
 export const JournalOutcomeSchema = z.strictObject({
   outcome: OutcomeSchema,
+  entryDelaySeconds: z.number().int().min(0).max(3600).nullable().optional(),
+  resultSource: z.enum(["UNVERIFIED", "BROKER_MANUAL", "FEED_ESTIMATE"]).optional(),
   entryPrice: z.number().positive().nullable().optional(),
   exitPrice: z.number().positive().nullable().optional(),
   payoutPercent: z.number().gt(0).max(200).nullable().optional(),
