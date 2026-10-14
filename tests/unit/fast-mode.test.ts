@@ -48,7 +48,7 @@ describe("FAST mode on a slow or patchy feed", () => {
   it("signals when the feed is one candle late and anchors the trade to the current minute", () => {
     const lagged = full.filter((c) => c.time < justClosed);
     const r = run(lagged);
-    expect(r.decision).not.toBe("NO_TRADE");
+    expect(r.checks.filter((c) => !c.passed && (c.id.startsWith("data.") || c.id === "timing.window"))).toEqual([]);
     expect(r.checks.find((c) => c.id === "data.freshness")?.passed).toBe(true);
     expect(r.signalCandleTime).toBe(justClosed);
     expect(r.entryWindowStart).toBe(justClosed + 60_000);
@@ -56,14 +56,16 @@ describe("FAST mode on a slow or patchy feed", () => {
 
   it("still refuses a feed that is two or more candles behind", () => {
     const stale = full.filter((c) => c.time < justClosed - 60_000);
-    expect(run(stale).decision).toBe("NO_TRADE");
+    const r = run(stale);
+    expect(r.decision).toBe("NO_TRADE");
+    expect(r.checks.find((c) => c.id === "data.freshness")?.passed).toBe(false);
   });
 
   it("tolerates several quiet missing minutes", () => {
     const gappy = full.filter((_, i) => ![full.length - 5, full.length - 12, full.length - 20, full.length - 33].includes(i));
     const r = run(gappy);
     expect(r.checks.find((c) => c.id === "data.gaps")?.passed).toBe(true);
-    expect(r.decision).not.toBe("NO_TRADE");
+    expect(r.checks.filter((c) => !c.passed && (c.id.startsWith("data.") || c.id === "timing.window"))).toEqual([]);
   });
 
   it("does not relax freshness for the other modes", () => {

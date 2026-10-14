@@ -7,8 +7,8 @@ import type { RuleConfig } from "./rules";
  * V2     — FADE_V2 exhaustion-fade strategy; historical results do not establish live profitability.
  * STRICT — original TREND_V1 rules.
  * NORMAL — TREND_V1 with looser agreement/level filters.
- * FAST   — EXPERIMENTAL TREND_V1 confluence mode. More permissive filters may produce more setups,
- *          but it is not validated or represented as profitable. Use for demo forward testing only.
+ * FAST   — EXPERIMENTAL candlestick-pattern strategy: a pattern on the signal candle, in the right
+ *          place (support/resistance, band, RSI extreme or with the trend). Not validated; demo only.
  */
 export type SignalMode = "V4" | "V2" | "STRICT" | "NORMAL" | "FAST";
 
@@ -44,11 +44,12 @@ export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
     entryWindowSeconds: 20,
   },
   FAST: {
-    version: "rules-fast-confluence-experimental",
+    version: "rules-fast-pattern-v1",
     strategy: "TREND_V1",
     minAgreement: 0.2,
     minSupportingEvidence: 2,
-    levelProximityAtr: 0.15,
+    // how close (in ATR) a pattern's wick must come to a support/resistance zone
+    levelProximityAtr: 0.3,
     minAtrPercentile: 0,
     maxAtrPercentile: 100,
     shockCandleAtr: 5,
@@ -64,5 +65,5 @@ export const MODE_LABEL: Record<SignalMode, string> = {
   V2: "v2 Fade (2026 mein haar raha)",
   STRICT: "v1 Strict (old)",
   NORMAL: "v1 Normal (old)",
-  FAST: "Fast Confluence (experimental)",
+  FAST: "Fast Candle Patterns (experimental)",
 };
