@@ -51,10 +51,28 @@ export async function analyze(params: { providerId: string; symbol: string; mark
   const resp = await provider.getCandles({ symbol: params.symbol, marketType: params.marketType, count });
   // Evaluate at the time the data was received, so the freshness check reflects reality.
   const now = Math.max(Date.now(), resp.receivedAt);
-  const input: EngineInput = { candles: resp.candles, symbol: sym.symbol, displaySymbol: sym.displaySymbol, marketType: params.marketType, symbolSupported: true, source, analysisKind, now };
+  // FAST gives the signal BEFORE the trade candle starts: in the last half of a minute
+  // the forming candle is treated as the signal candle, so the CALL/PUT is for the NEXT
+  // candle and the app can count down to its start.
+  const evalNow = params.mode === "FAST" ? fastEvaluationTime(now, cfg.timeframeSeconds * 1000) : now;
+  const input: EngineInput = { candles: resp.candles, symbol: sym.symbol, displaySymbol: sym.displaySymbol, marketType: params.marketType, symbolSupported: true, source, analysisKind, now: evalNow };
   const result = evaluateSignal({ ...input, config: cfg });
+  result.analyzedAt = now;
   const shadow = shadowDecisions(input, params.mode ?? "V2", result);
   return { result, chart: buildChart(resp.candles, now, cfg), provider: { id: provider.id, name: provider.name, verified: provider.verified, latencyMs: resp.latencyMs }, shadow };
+}
+
+/** Seconds into the minute from which FAST reads the forming candle as the signal candle. */
+export const FAST_PRECLOSE_FROM_MS = 30_000;
+
+/**
+ * Evaluation clock for FAST. From second 30 of a minute it is moved to the end of that
+ * minute, so the forming candle counts as the last candle and the entry window is the
+ * next candle. Earlier in the minute (e.g. "Check now" at second 5) the real time is used.
+ */
+export function fastEvaluationTime(now: number, tfMs = 60_000): number {
+  const into = now % tfMs;
+  return into >= FAST_PRECLOSE_FROM_MS ? now - into + tfMs : now;
 }
 
 function buildChart(raw: Candle[], now: number, cfg: RuleConfig): ChartPayload | null {
