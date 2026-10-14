@@ -1,9 +1,9 @@
 {
- "generatedAt": "2026-10-14T04:33:11.412Z",
+ "generatedAt": "2026-10-14T04:52:54.331Z",
  "source": "Twelve Data 1-minute candles (the feed the live app uses)",
  "period": {
-  "from": "2026-08-15T04:17:00.000Z",
-  "to": "2026-10-14T04:15:00.000Z"
+  "from": "2026-08-15T04:36:00.000Z",
+  "to": "2026-10-14T04:34:00.000Z"
  },
  "payout": 0.85,
  "breakEven": 0.5405,
@@ -16,48 +16,150 @@
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0,
+    "continuousOpenShare": 0.0006,
+    "medianGapToRange": 0.3017,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 573,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 573,
+     "winRate": 0.5532,
+     "ci95": [
+      0.5123,
+      0.5934
+     ]
+    }
+   }
   },
   "AUD/USD": {
    "candles": 86398,
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0.0058,
+    "continuousOpenShare": 0.1506,
+    "medianGapToRange": 0.2857,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 693,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 681,
+     "winRate": 0.4449,
+     "ci95": [
+      0.408,
+      0.4825
+     ]
+    }
+   }
   },
   "EUR/JPY": {
    "candles": 86398,
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0,
+    "continuousOpenShare": 0.0002,
+    "medianGapToRange": 0.3094,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 599,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 599,
+     "winRate": 0.6194,
+     "ci95": [
+      0.5798,
+      0.6574
+     ]
+    }
+   }
   },
   "EUR/USD": {
    "candles": 86398,
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0.0008,
+    "continuousOpenShare": 0.0842,
+    "medianGapToRange": 0.3077,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 548,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 544,
+     "winRate": 0.511,
+     "ci95": [
+      0.4691,
+      0.5528
+     ]
+    }
+   }
   },
   "GBP/USD": {
    "candles": 86398,
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0.0006,
+    "continuousOpenShare": 0.0854,
+    "medianGapToRange": 0.2927,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 442,
+    "v2GapZero": 1,
+    "v2EntryAtSignalClose": {
+     "n": 436,
+     "winRate": 0.3119,
+     "ci95": [
+      0.2702,
+      0.3569
+     ]
+    }
+   }
   },
   "USD/CAD": {
    "candles": 86398,
    "minutesSpanned": 86399,
    "duplicates": 0,
    "invalidRows": 0,
-   "first": "2026-08-15T04:17:00.000Z",
-   "last": "2026-10-14T04:15:00.000Z"
+   "first": "2026-08-15T04:36:00.000Z",
+   "last": "2026-10-14T04:34:00.000Z",
+   "feed": {
+    "weekendCandles": 25463,
+    "flatCandleShare": 0.0006,
+    "continuousOpenShare": 0.0865,
+    "medianGapToRange": 0.3,
+    "v2GapWithSignal": 0,
+    "v2GapAgainstSignal": 479,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 465,
+     "winRate": 0.3656,
+     "ci95": [
+      0.3231,
+      0.4103
+     ]
+    }
+   }
   }
  },
  "v2": {
@@ -227,6 +329,32 @@
     "net": -209.05,
     "maxLosingStreak": 22,
     "maxDrawdown": 211.4
+   }
+  },
+  "byWeekPart": {
+   "weekday": {
+    "n": 1842,
+    "signals": 1861,
+    "winRate": 0.1276,
+    "ci95": [
+     0.1131,
+     0.1436
+    ],
+    "net": -1407.25,
+    "maxLosingStreak": 53,
+    "maxDrawdown": 1408.1
+   },
+   "weekend (market closed)": {
+    "n": 1389,
+    "signals": 1474,
+    "winRate": 0.5133,
+    "ci95": [
+     0.487,
+     0.5395
+    ],
+    "net": -69.95,
+    "maxLosingStreak": 12,
+    "maxDrawdown": 112.4
    }
   }
  },
