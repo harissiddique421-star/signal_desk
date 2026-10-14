@@ -305,15 +305,24 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   if (fadeMode) {
     return decideFade({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen });
   }
-  const want: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
+  const weightedWant: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
+  // In FAST mode, always produce a directional candidate from valid, fresh candles.
+  // If indicator weights tie, use the last CLOSED candle direction; a doji falls back
+  // to the latest non-doji candle. This is a forced demo candidate, not a validated edge.
+  const lastDirectionalCandle = [...closed].reverse().find((c) => c.close !== c.open);
+  const fastFallback: Direction = lastDirectionalCandle
+    ? (lastDirectionalCandle.close > lastDirectionalCandle.open ? "BULLISH" : "BEARISH")
+    : "NEUTRAL";
+  const want: Direction = fastMode && weightedWant === "NEUTRAL" ? fastFallback : weightedWant;
   const supporting = want === "NEUTRAL" ? 0 : evidence.filter((e) => e.direction === want).length;
 
   // FAST is an explicitly permissive, user-directed experimental vote mode.
   // Keep source, symbol, candle integrity/freshness, market-hours and entry-window
   // gates above/below, but do not silently apply the stricter trend/structure/RSI/level filters.
   if (fastMode) {
-    addCheck("decision.fastDirection", "Directional vote", want !== "NEUTRAL", want === "NEUTRAL" ? "Bullish and bearish evidence are tied; no direction to display" : `${want} has the stronger weighted evidence`);
-    addCheck("decision.fastVotes", "Matching strategy votes", supporting >= 2, `${supporting} evidence items match ${want}; FAST threshold is 2`);
+    addCheck("decision.fastDirection", "Forced FAST direction", want !== "NEUTRAL", want === "NEUTRAL" ? "No directional candle available" : weightedWant === "NEUTRAL" ? `${want} selected from latest non-doji closed candle because evidence was tied` : `${want} has the stronger weighted evidence`);
+    addCheck("decision.fastVotes", "Matching strategy votes", true, `${supporting} evidence items match ${want}; FAST force-signal mode does not require a vote minimum`);
+    warnings.push("FORCED FAST DEMO CANDIDATE: a CALL/PUT is shown from the available candle direction even without confluence. This is not a validated trading signal; verify manually and test in demo only.");
     const metrics: SignalMetrics = {
       atrPercentile: round(atrPct, 1),
       lastRangeAtr: round(lastRange / atrPrev, 3),
