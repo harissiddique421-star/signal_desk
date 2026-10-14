@@ -16,7 +16,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getHistoricalRates } from "dukascopy-node";
+import { BufferFetcher, generateUrls, getHistoricalRates, normaliseDates, processData } from "dukascopy-node";
 import type { Candle } from "../../src/lib/types";
 
 const args = new Map<string, string>();
@@ -27,21 +27,45 @@ const pairs = (args.get("pairs") ?? "EUR/USD,GBP/USD,USD/CAD,AUD/USD,EUR/JPY,AUD
 
 type Instrument = Parameters<typeof getHistoricalRates>[0]["instrument"];
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let requests = 0;
+
+/**
+ * Dukascopy's data feed sometimes answers 202 (request accepted, data not served
+ * yet) or 429/5xx, especially to cloud IPs. The library's own fetcher treats any
+ * non-200 as an error, so requests go through this one: browser-like headers,
+ * exponential back-off on 202/429/5xx, and an empty buffer for 404 (no data that hour/day).
+ */
+async function fetchWithBackoff(url: string): Promise<Buffer> {
+  let last = 0;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    requests++;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36",
+        Referer: "https://www.dukascopy.com/swiss/english/marketwatch/historical/",
+        Accept: "*/*",
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+    last = res.status;
+    if (res.status === 200) return Buffer.from(await res.arrayBuffer());
+    if (res.status === 404) return Buffer.from("");
+    await res.arrayBuffer().catch(() => null);
+    await sleep(Math.min(30_000, 1000 * 2 ** attempt));
+  }
+  throw new Error(`Dukascopy kept answering HTTP ${last} for ${url.split("/datafeed/")[1] ?? url}`);
+}
+
 async function side(instrument: Instrument, priceType: "bid" | "ask", from: Date, to: Date) {
-  const rows = await getHistoricalRates({
-    instrument,
-    dates: { from, to },
-    timeframe: "m1",
-    priceType,
-    format: "json",
-    volumes: false,
-    ignoreFlats: true,
-    batchSize: 10,
-    pauseBetweenBatchesMs: 500,
-    retryCount: 3,
-    failAfterRetryCount: true,
-  });
-  return new Map(rows.map((r) => [r.timestamp, r]));
+  const [startDate, endDate] = normaliseDates({ instrument, startDate: from, endDate: to, timeframe: "m1", utcOffset: 0 });
+  const urls = generateUrls({ instrument, timeframe: "m1", priceType, startDate, endDate });
+  const fetcher = new BufferFetcher({ batchSize: 4, pauseBetweenBatchesMs: 750, fetcherFn: fetchWithBackoff, retryCount: 0, retryOnEmpty: false, failAfterRetryCount: true, pauseBetweenRetriesMs: 0 });
+  const buffers = await fetcher.fetch(urls);
+  const processed = processData({ instrument, requestedTimeframe: "m1", bufferObjects: buffers, priceType, volumes: false, volumeUnits: "millions", ignoreFlats: true });
+  const rows = processed.filter(([t]) => t && t >= +startDate && t < +endDate);
+  // processData rows: [timestamp, open, high, low, close]
+  return new Map(rows.map((r) => [r[0], { timestamp: r[0], open: r[1], high: r[2], low: r[3], close: r[4] }]));
 }
 
 async function main() {
@@ -79,7 +103,7 @@ async function main() {
       first: candles[0] ? new Date(candles[0].time).toISOString() : null,
       last: candles.length ? new Date(candles[candles.length - 1].time).toISOString() : null,
     };
-    console.error(`${symbol}: ${candles.length} candles`);
+    console.error(`${symbol}: ${candles.length} candles (${requests} requests so far)`);
   }
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "fetch-meta.json"), JSON.stringify(meta, null, 1) + "\n");
