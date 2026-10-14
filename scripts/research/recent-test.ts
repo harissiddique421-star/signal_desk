@@ -106,6 +106,69 @@ function compare(a: { n: number; winRate: number | null }, b: { n: number; winRa
   return { diff: r4(a.winRate - b.winRate), z: Math.round(z * 100) / 100, pValue: r4(pValue) };
 }
 
+const isWeekend = (t: number) => {
+  const d = new Date(t);
+  const day = d.getUTCDay();
+  const h = d.getUTCHours();
+  return day === 6 || (day === 5 && h >= 21) || (day === 0 && h < 21);
+};
+const median = (xs: number[]) => {
+  if (!xs.length) return null;
+  const a = [...xs].sort((x, y) => x - y);
+  return a[Math.floor(a.length / 2)];
+};
+
+/**
+ * How this feed builds its candles. The outcome rule assumes the next candle opens
+ * where the signal candle closed (a continuous price series). If a feed's "open" is
+ * taken from a different moment, "open → close of the next candle" no longer measures
+ * what a trader entering at the start of the minute would get.
+ */
+function feedCheck(candles: Candle[], trades: { signalCandleTime: number; decision: "CALL" | "PUT" }[]) {
+  const byTime = new Map(candles.map((c, i) => [c.time, i]));
+  let pairs = 0, continuous = 0, flat = 0, weekend = 0;
+  const gapRel: number[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    if (c.high === c.low) flat++;
+    if (isWeekend(c.time)) weekend++;
+    const n = candles[i + 1];
+    if (!n || n.time !== c.time + TF) continue;
+    pairs++;
+    const gap = Math.abs(n.open - c.close);
+    if (gap < 1e-9) continuous++;
+    const range = c.high - c.low;
+    if (range > 0) gapRel.push(gap / range);
+  }
+  // For v2 trades: does the gap between signal close and next open run WITH the signal candle?
+  let gapWith = 0, gapAgainst = 0, gapZero = 0;
+  const closeEntry: Outcome[] = [];
+  for (const t of trades) {
+    const i = byTime.get(t.signalCandleTime);
+    if (i === undefined) continue;
+    const c = candles[i], n = candles[i + 1];
+    if (!n || n.time !== c.time + TF) continue;
+    const dirSignal = Math.sign(c.close - c.open);
+    const g = Math.sign(n.open - c.close);
+    if (g === 0) gapZero++;
+    else if (g === dirSignal) gapWith++;
+    else gapAgainst++;
+    // Alternative entry: at the signal candle's close (what a continuous feed would give).
+    closeEntry.push(outcomeOf(t.decision, c.close, n.close));
+  }
+  const ce = summarize(closeEntry.map((o, k) => ({ time: k, outcome: o })), payout);
+  return {
+    weekendCandles: weekend,
+    flatCandleShare: r4(flat / candles.length),
+    continuousOpenShare: pairs ? r4(continuous / pairs) : null,
+    medianGapToRange: r4(median(gapRel)),
+    v2GapWithSignal: gapWith,
+    v2GapAgainstSignal: gapAgainst,
+    v2GapZero: gapZero,
+    v2EntryAtSignalClose: { n: ce.wins + ce.losses, winRate: r4(ce.winRate), ci95: ce.winRateCi95?.map((x) => r4(x)) ?? null },
+  };
+}
+
 const MIN_TRADES = 200;
 function verdict(s: { n: number; winRate: number | null; ci95: [number, number] | null }, be: number) {
   if (s.n < MIN_TRADES) return { code: "TOO_FEW", text: `Sirf ${s.n} trades — kam az kam ${MIN_TRADES} chahiye. Abhi faisla nahin ho sakta.` };
@@ -151,7 +214,15 @@ function main() {
     const v3 = v3Trades(pair, candles);
     v2All.push(...v2);
     v3All.push(...v3);
-    data[pair] = { candles: candles.length, minutesSpanned: span, duplicates, invalidRows, first: new Date(candles[0].time).toISOString(), last: new Date(candles[candles.length - 1].time).toISOString() };
+    data[pair] = {
+      candles: candles.length,
+      minutesSpanned: span,
+      duplicates,
+      invalidRows,
+      first: new Date(candles[0].time).toISOString(),
+      last: new Date(candles[candles.length - 1].time).toISOString(),
+      feed: feedCheck(candles, res.trades),
+    };
     console.error(`${pair}: ${candles.length} candles, v2 ${v2.length} signals, v3 ${v3.length} signals`);
   }
 
@@ -183,6 +254,7 @@ function main() {
       vsHistoricalTest: hist("v2") ? { historical: hist("v2"), ...compare(v2, hist("v2")!) } : null,
       byPair: by(v2All, (t) => t.pair),
       bySession: by(v2All, (t) => sessionOf(t.time)),
+      byWeekPart: by(v2All, (t) => (isWeekend(t.time) ? "weekend (market closed)" : "weekday")),
     },
     v3: {
       onTime: v3,
