@@ -38,9 +38,23 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
+      # Says where the key was found, never its value. A repository *variable*
+      # is accepted as a fallback in case the key was added there by mistake.
+      - name: Check API key
+        run: |
+          echo "Repository secret TWELVEDATA_API_KEY set: ${{ secrets.TWELVEDATA_API_KEY != '' }}"
+          echo "Repository variable TWELVEDATA_API_KEY set: ${{ vars.TWELVEDATA_API_KEY != '' }}"
+          if [ "${{ secrets.TWELVEDATA_API_KEY != '' || vars.TWELVEDATA_API_KEY != '' }}" != "true" ]; then
+            echo "::error::TWELVEDATA_API_KEY not found. Add it under Settings → Secrets and variables → Actions → Secrets (Repository secrets, not Environment secrets)."
+            exit 2
+          fi
+          if [ "${{ secrets.TWELVEDATA_API_KEY != '' }}" != "true" ]; then
+            echo "::warning::Key found as a repository variable, not a secret. It works, but variables are visible to anyone with access to the repo settings; prefer a secret."
+          fi
+
       - name: Download recent 1-minute candles
         env:
-          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY || vars.TWELVEDATA_API_KEY }}
         run: npx tsx scripts/research/fetch-twelvedata.ts --out data-recent --days "${{ github.event.inputs.days || '60' }}" --rpm 7
 
       - name: Run v2 and v3 on them
