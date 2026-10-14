@@ -10,6 +10,7 @@ export const CHECK_TEXT: Record<string, string> = {
   "data.timestamps": "Candles ka waqt theek nahin.",
   "data.gaps": "Data mein candles missing hain.",
   "data.freshness": "Taaza candle abhi nahin aayi.",
+  "data.marketHours": "Forex market band hai (weekend). Is waqt ka data asli market nahin, is liye signal nahin.",
   "data.warmup": "Indicators ke liye data kam hai.",
   "vol.shock": "Abhi bahut bari candle bani hai — khatra zyada.",
   "news.available": "News filter mojood nahin.",

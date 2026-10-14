@@ -126,17 +126,26 @@ const median = (xs: number[]) => {
  */
 function feedCheck(candles: Candle[], trades: { signalCandleTime: number; decision: "CALL" | "PUT" }[]) {
   const byTime = new Map(candles.map((c, i) => [c.time, i]));
-  let pairs = 0, continuous = 0, flat = 0, weekend = 0;
+  let pairs = 0, continuous = 0, flat = 0, weekend = 0, openEqPrevOpen = 0, openInPrevRange = 0, closeEqNextOpenOfNext = 0;
+  let sGB = 0, sBB = 0; // regression of gap on the previous candle's body (weekdays)
   const gapRel: number[] = [];
   for (let i = 0; i < candles.length; i++) {
     const c = candles[i];
     if (c.high === c.low) flat++;
     if (isWeekend(c.time)) weekend++;
     const n = candles[i + 1];
-    if (!n || n.time !== c.time + TF) continue;
+    if (!n || n.time !== c.time + TF || isWeekend(c.time)) continue;
     pairs++;
-    const gap = Math.abs(n.open - c.close);
+    const gapSigned = n.open - c.close;
+    const gap = Math.abs(gapSigned);
     if (gap < 1e-9) continuous++;
+    if (Math.abs(n.open - c.open) < 1e-9) openEqPrevOpen++;
+    if (n.open >= c.low && n.open <= c.high) openInPrevRange++;
+    const nn = candles[i + 2];
+    if (nn && nn.time === n.time + TF && Math.abs(c.close - nn.open) < 1e-9) closeEqNextOpenOfNext++;
+    const body = c.close - c.open;
+    sGB += gapSigned * body;
+    sBB += body * body;
     const range = c.high - c.low;
     if (range > 0) gapRel.push(gap / range);
   }
@@ -147,7 +156,7 @@ function feedCheck(candles: Candle[], trades: { signalCandleTime: number; decisi
     const i = byTime.get(t.signalCandleTime);
     if (i === undefined) continue;
     const c = candles[i], n = candles[i + 1];
-    if (!n || n.time !== c.time + TF) continue;
+    if (!n || n.time !== c.time + TF || isWeekend(c.time)) continue;
     const dirSignal = Math.sign(c.close - c.open);
     const g = Math.sign(n.open - c.close);
     if (g === 0) gapZero++;
@@ -161,6 +170,12 @@ function feedCheck(candles: Candle[], trades: { signalCandleTime: number; decisi
     weekendCandles: weekend,
     flatCandleShare: r4(flat / candles.length),
     continuousOpenShare: pairs ? r4(continuous / pairs) : null,
+    // weekday minutes only from here
+    openEqualsPrevOpenShare: pairs ? r4(openEqPrevOpen / pairs) : null,
+    openInsidePrevRangeShare: pairs ? r4(openInPrevRange / pairs) : null,
+    closeEqualsOpenTwoAheadShare: pairs ? r4(closeEqNextOpenOfNext / pairs) : null,
+    /** gap(next open − close) ≈ slope × body(close − open). 0 = continuous feed; −1 = next open equals this open. */
+    gapOnBodySlope: sBB > 0 ? r4(sGB / sBB) : null,
     medianGapToRange: r4(median(gapRel)),
     v2GapWithSignal: gapWith,
     v2GapAgainstSignal: gapAgainst,

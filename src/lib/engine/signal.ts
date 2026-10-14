@@ -5,6 +5,7 @@ import type { AnalysisKind, Candle, Check, Decision, Direction, Evidence, Market
 import { checkFreshness, closedCandlesOnly, inspectSeries } from "../validation/candles";
 import { anatomy, detectPatterns } from "../analysis/candles";
 import { buildZones, detectBreakouts, findSwings, marketStructure, nearestZones, resample } from "../analysis/structure";
+import { isFxWeekendClosed } from "../analysis/market-hours";
 
 export interface SourceInfo {
   id: string;
@@ -138,6 +139,13 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   );
   const fresh = checkFreshness(closed, tfMs, input.now, cfg.maxStalenessSeconds);
   addCheck("data.freshness", "Freshness", fresh.fresh, fresh.detail);
+  if (input.marketType === "LIVE" && input.analysisKind === "LIVE_FEED") {
+    // Feeds that keep printing candles over the weekend must not produce signals:
+    // the regular FX market is closed and the rules were never tested on those minutes.
+    const last = closed[closed.length - 1];
+    const weekend = isFxWeekendClosed(last.time) || isFxWeekendClosed(input.now);
+    addCheck("data.marketHours", "Market hours", !weekend, weekend ? "Regular FX market is closed (Friday 21:00 – Sunday 22:00 UTC)" : "Regular FX market open");
+  }
   if (reasons.length && checks.some((c) => c.id.startsWith("data.") && !c.passed)) {
     warnings.push(UR.noData);
     return finalize(base, input, warnings);
