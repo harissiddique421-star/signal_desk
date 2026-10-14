@@ -24,6 +24,8 @@ for (let i = 2; i < process.argv.length; i += 2) args.set(process.argv[i].replac
 const outDir = args.get("out") ?? "data-dukascopy";
 const days = Number(args.get("days") ?? 60);
 const pairs = (args.get("pairs") ?? "EUR/USD,GBP/USD,USD/CAD,AUD/USD,EUR/JPY,AUD/JPY").split(",");
+const batch = Number(args.get("batch") ?? 4);
+const pauseMs = Number(args.get("pause") ?? 750);
 
 type Instrument = Parameters<typeof getHistoricalRates>[0]["instrument"];
 
@@ -60,7 +62,7 @@ async function fetchWithBackoff(url: string): Promise<Buffer> {
 async function side(instrument: Instrument, priceType: "bid" | "ask", from: Date, to: Date) {
   const [startDate, endDate] = normaliseDates({ instrument, startDate: from, endDate: to, timeframe: "m1", utcOffset: 0 });
   const urls = generateUrls({ instrument, timeframe: "m1", priceType, startDate, endDate });
-  const fetcher = new BufferFetcher({ batchSize: 4, pauseBetweenBatchesMs: 750, fetcherFn: fetchWithBackoff, retryCount: 0, retryOnEmpty: false, failAfterRetryCount: true, pauseBetweenRetriesMs: 0 });
+  const fetcher = new BufferFetcher({ batchSize: batch, pauseBetweenBatchesMs: pauseMs, fetcherFn: fetchWithBackoff, retryCount: 0, retryOnEmpty: false, failAfterRetryCount: true, pauseBetweenRetriesMs: 0 });
   const buffers = await fetcher.fetch(urls);
   const processed = processData({ instrument, requestedTimeframe: "m1", bufferObjects: buffers, priceType, volumes: false, volumeUnits: "millions", ignoreFlats: true });
   const rows = processed.filter(([t]) => t && t >= +startDate && t < +endDate);

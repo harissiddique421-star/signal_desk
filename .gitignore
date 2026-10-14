@@ -53,3 +53,4 @@ next-env.d.ts
 __pycache__/
 /data-recent/
 /data-dukascopy/
+/data-search/

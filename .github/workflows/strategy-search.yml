@@ -1,0 +1,79 @@
+# Pre-registered search for a new strategy (v4) on ~2 years of Dukascopy
+# 1-minute mid candles. See scripts/research/search_v4.py for the fixed protocol
+# (splits, rule families, selection, payout 90 %, expiry 1–2 min).
+# Commits src/lib/research/strategy-search.json. Run it from the Actions tab.
+name: Strategy search (v4)
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days of history to download"
+        default: "790"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strategy-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: pip install pandas==2.2.3 numpy==2.1.3
+
+      # The 2-year download is slow; keep it so the search can be re-run without it.
+      - name: Restore candle cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data-search
+          key: dukascopy-search-2026-10-14-${{ github.event.inputs.days }}
+
+      - name: Download ~2 years of 1-minute candles (bid + ask → mid)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npx tsx scripts/research/fetch-dukascopy.ts --out data-search --days "${{ github.event.inputs.days }}" --batch 10 --pause 300
+
+      - name: Save candle cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data-search
+          key: dukascopy-search-2026-10-14-${{ github.event.inputs.days }}
+
+      - name: Run the pre-registered search
+        run: python3 scripts/research/search_v4.py --data data-search --out src/lib/research/strategy-search.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strategy-search
+          path: |
+            src/lib/research/strategy-search.json
+            data-search/fetch-meta.json
+
+      - name: Commit the result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/research/strategy-search.json
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          git commit -m "Strategy search (v4): update strategy-search.json"
+          for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0; sleep 5; done
+          exit 1
