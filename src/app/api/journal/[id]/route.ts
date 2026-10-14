@@ -17,12 +17,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       .from("signal_records")
       .update({
         outcome: body.outcome,
-        entry_price: body.entryPrice ?? null,
-        exit_price: body.exitPrice ?? null,
-        payout_percent: body.payoutPercent ?? null,
-        entry_delay_seconds: body.entryDelaySeconds ?? null,
-        result_source: body.resultSource ?? "UNVERIFIED",
-        notes: body.notes ?? null,
+        ...(body.entryPrice !== undefined ? { entry_price: body.entryPrice } : {}),
+        ...(body.exitPrice !== undefined ? { exit_price: body.exitPrice } : {}),
+        ...(body.payoutPercent !== undefined ? { payout_percent: body.payoutPercent } : {}),
+        ...(body.entryDelaySeconds !== undefined ? { entry_delay_seconds: body.entryDelaySeconds } : {}),
+        ...(body.resultSource !== undefined ? { result_source: body.resultSource } : {}),
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
         resolved_at: body.outcome === "UNRESOLVED" ? null : new Date().toISOString(),
       })
       .eq("id", id)
