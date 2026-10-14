@@ -1,0 +1,1002 @@
+{
+ "generatedAt": "2026-10-14T08:33:12.690299+00:00",
+ "data": "Dukascopy 1-minute mid candles, AUD/JPY, AUD/USD, EUR/JPY, EUR/USD, GBP/USD, USD/CAD",
+ "period": {
+  "from": "2024-08-15 09:20:00+00:00",
+  "to": "2026-10-14 08:18:00+00:00",
+  "trainEnd": "2025-10-01",
+  "validationEnd": "2026-04-01"
+ },
+ "payout": 0.9,
+ "breakEven": 0.5263,
+ "configsTried": 4500,
+ "eligibleMinutes": {
+  "train": 2199816,
+  "validation": 970302,
+  "test": 1060365
+ },
+ "trainTop": [
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.1,
+    "range_atr": 2.0,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "asia",
+    "expiry": 1
+   },
+   "train": {
+    "n": 648,
+    "winRate": 0.591,
+    "ci95": [
+     0.5528,
+     0.6283
+    ],
+    "net": 79.7
+   },
+   "validation": {
+    "n": 315,
+    "winRate": 0.5587,
+    "ci95": [
+     0.5035,
+     0.6125
+    ],
+    "net": 19.4
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.7,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1905,
+    "winRate": 0.5706,
+    "ci95": [
+     0.5483,
+     0.5927
+    ],
+    "net": 160.3
+   },
+   "validation": {
+    "n": 755,
+    "winRate": 0.5285,
+    "ci95": [
+     0.4928,
+     0.5639
+    ],
+    "net": 3.1
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.0,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1084,
+    "winRate": 0.5775,
+    "ci95": [
+     0.5479,
+     0.6066
+    ],
+    "net": 105.4
+   },
+   "validation": {
+    "n": 470,
+    "winRate": 0.5362,
+    "ci95": [
+     0.491,
+     0.5808
+    ],
+    "net": 8.8
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 854,
+    "winRate": 0.5808,
+    "ci95": [
+     0.5474,
+     0.6135
+    ],
+    "net": 88.4
+   },
+   "validation": {
+    "n": 359,
+    "winRate": 0.5432,
+    "ci95": [
+     0.4915,
+     0.594
+    ],
+    "net": 11.5
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.3,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 2410,
+    "winRate": 0.5664,
+    "ci95": [
+     0.5465,
+     0.5861
+    ],
+    "net": 183.5
+   },
+   "validation": {
+    "n": 944,
+    "winRate": 0.5413,
+    "ci95": [
+     0.5094,
+     0.5729
+    ],
+    "net": 26.9
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 3.0,
+    "body": 0.7,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1236,
+    "winRate": 0.5736,
+    "ci95": [
+     0.5459,
+     0.6009
+    ],
+    "net": 111.1
+   },
+   "validation": {
+    "n": 489,
+    "winRate": 0.5603,
+    "ci95": [
+     0.516,
+     0.6037
+    ],
+    "net": 31.6
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.5,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 2293,
+    "winRate": 0.5661,
+    "ci95": [
+     0.5457,
+     0.5862
+    ],
+    "net": 173.2
+   },
+   "validation": {
+    "n": 903,
+    "winRate": 0.5426,
+    "ci95": [
+     0.51,
+     0.5749
+    ],
+    "net": 28.0
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.1,
+    "range_atr": 2.5,
+    "body": 0.7,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "asia",
+    "expiry": 1
+   },
+   "train": {
+    "n": 986,
+    "winRate": 0.5761,
+    "ci95": [
+     0.545,
+     0.6066
+    ],
+    "net": 93.2
+   },
+   "validation": {
+    "n": 416,
+    "winRate": 0.5385,
+    "ci95": [
+     0.4904,
+     0.5858
+    ],
+    "net": 9.6
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 1.5,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1254,
+    "winRate": 0.5718,
+    "ci95": [
+     0.5442,
+     0.5989
+    ],
+    "net": 108.3
+   },
+   "validation": {
+    "n": 532,
+    "winRate": 0.5301,
+    "ci95": [
+     0.4876,
+     0.5721
+    ],
+    "net": 3.8
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.0,
+    "range_atr": 2.0,
+    "body": 0.5,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "london",
+    "expiry": 1
+   },
+   "train": {
+    "n": 543,
+    "winRate": 0.5856,
+    "ci95": [
+     0.5437,
+     0.6263
+    ],
+    "net": 61.2
+   },
+   "validation": {
+    "n": 240,
+    "winRate": 0.4708,
+    "ci95": [
+     0.4086,
+     0.5339
+    ],
+    "net": -25.3
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.1,
+    "range_atr": 2.0,
+    "body": 0.5,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "asia",
+    "expiry": 1
+   },
+   "train": {
+    "n": 796,
+    "winRate": 0.5779,
+    "ci95": [
+     0.5433,
+     0.6117
+    ],
+    "net": 78.0
+   },
+   "validation": {
+    "n": 360,
+    "winRate": 0.5667,
+    "ci95": [
+     0.515,
+     0.6169
+    ],
+    "net": 27.6
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.1,
+    "range_atr": 3.0,
+    "body": 0.7,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1429,
+    "winRate": 0.5689,
+    "ci95": [
+     0.5431,
+     0.5944
+    ],
+    "net": 115.7
+   },
+   "validation": {
+    "n": 544,
+    "winRate": 0.5515,
+    "ci95": [
+     0.5095,
+     0.5928
+    ],
+    "net": 26.0
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.0,
+    "range_atr": 3.0,
+    "body": 0.7,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1500,
+    "winRate": 0.568,
+    "ci95": [
+     0.5428,
+     0.5929
+    ],
+    "net": 118.8
+   },
+   "validation": {
+    "n": 561,
+    "winRate": 0.5526,
+    "ci95": [
+     0.5112,
+     0.5932
+    ],
+    "net": 28.0
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 1.0,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1301,
+    "winRate": 0.5696,
+    "ci95": [
+     0.5425,
+     0.5962
+    ],
+    "net": 106.9
+   },
+   "validation": {
+    "n": 547,
+    "winRate": 0.5338,
+    "ci95": [
+     0.4919,
+     0.5752
+    ],
+    "net": 7.8
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 3.0,
+    "body": 0.3,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1590,
+    "winRate": 0.5667,
+    "ci95": [
+     0.5422,
+     0.5908
+    ],
+    "net": 121.9
+   },
+   "validation": {
+    "n": 621,
+    "winRate": 0.5668,
+    "ci95": [
+     0.5276,
+     0.6053
+    ],
+    "net": 47.8
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.7,
+    "rsi": 70,
+    "mode": "fade",
+    "session": "london",
+    "expiry": 1
+   },
+   "train": {
+    "n": 623,
+    "winRate": 0.5811,
+    "ci95": [
+     0.5419,
+     0.6192
+    ],
+    "net": 64.8
+   },
+   "validation": {
+    "n": 263,
+    "winRate": 0.4905,
+    "ci95": [
+     0.4306,
+     0.5506
+    ],
+    "net": -17.9
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 3.0,
+    "body": 0.5,
+    "rsi": 75,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1507,
+    "winRate": 0.5667,
+    "ci95": [
+     0.5415,
+     0.5915
+    ],
+    "net": 115.6
+   },
+   "validation": {
+    "n": 591,
+    "winRate": 0.5719,
+    "ci95": [
+     0.5317,
+     0.6112
+    ],
+    "net": 51.2
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 3.0,
+    "body": 0.7,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 620,
+    "winRate": 0.5806,
+    "ci95": [
+     0.5414,
+     0.6189
+    ],
+    "net": 64.0
+   },
+   "validation": {
+    "n": 269,
+    "winRate": 0.5762,
+    "ci95": [
+     0.5165,
+     0.6338
+    ],
+    "net": 25.5
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.3,
+    "rsi": 70,
+    "mode": "fade",
+    "session": "london",
+    "expiry": 1
+   },
+   "train": {
+    "n": 749,
+    "winRate": 0.5768,
+    "ci95": [
+     0.5411,
+     0.6117
+    ],
+    "net": 71.8
+   },
+   "validation": {
+    "n": 318,
+    "winRate": 0.5,
+    "ci95": [
+     0.4454,
+     0.5546
+    ],
+    "net": -15.9
+   }
+  },
+  {
+   "config": {
+    "family": "band_extreme",
+    "pb": 1.2,
+    "range_atr": 2.5,
+    "body": 0.3,
+    "rsi": 80,
+    "mode": "fade",
+    "session": "all",
+    "expiry": 1
+   },
+   "train": {
+    "n": 1072,
+    "winRate": 0.5709,
+    "ci95": [
+     0.5411,
+     0.6002
+    ],
+    "net": 90.8
+   },
+   "validation": {
+    "n": 442,
+    "winRate": 0.5498,
+    "ci95": [
+     0.5032,
+     0.5955
+    ],
+    "net": 19.7
+   }
+  }
+ ],
+ "chosen": {
+  "config": {
+   "family": "band_extreme",
+   "pb": 1.2,
+   "range_atr": 3.0,
+   "body": 0.5,
+   "rsi": 75,
+   "mode": "fade",
+   "session": "all",
+   "expiry": 1
+  },
+  "passedValidation": true,
+  "heldOnTest": false,
+  "train": {
+   "n": 1507,
+   "winRate": 0.5667,
+   "ci95": [
+    0.5415,
+    0.5915
+   ],
+   "net": 115.6
+  },
+  "trainLate": {
+   "n": 1499,
+   "winRate": 0.4937,
+   "ci95": [
+    0.4684,
+    0.519
+   ],
+   "net": -93.0
+  },
+  "validation": {
+   "n": 591,
+   "winRate": 0.5719,
+   "ci95": [
+    0.5317,
+    0.6112
+   ],
+   "net": 51.2
+  },
+  "validationLate": {
+   "n": 586,
+   "winRate": 0.5137,
+   "ci95": [
+    0.4732,
+    0.5539
+   ],
+   "net": -14.1
+  },
+  "test": {
+   "n": 860,
+   "winRate": 0.5581,
+   "ci95": [
+    0.5248,
+    0.591
+   ],
+   "net": 52.0
+  },
+  "testLate": {
+   "n": 850,
+   "winRate": 0.54,
+   "ci95": [
+    0.5064,
+    0.5733
+   ],
+   "net": 22.1
+  },
+  "testByPair": {
+   "AUD/JPY": {
+    "n": 149,
+    "winRate": 0.6309,
+    "ci95": [
+     0.551,
+     0.7042
+    ],
+    "net": 29.6
+   },
+   "AUD/USD": {
+    "n": 146,
+    "winRate": 0.5959,
+    "ci95": [
+     0.5148,
+     0.672
+    ],
+    "net": 19.3
+   },
+   "EUR/JPY": {
+    "n": 154,
+    "winRate": 0.526,
+    "ci95": [
+     0.4474,
+     0.6032
+    ],
+    "net": -0.1
+   },
+   "EUR/USD": {
+    "n": 158,
+    "winRate": 0.5127,
+    "ci95": [
+     0.4353,
+     0.5894
+    ],
+    "net": -4.1
+   },
+   "GBP/USD": {
+    "n": 141,
+    "winRate": 0.5674,
+    "ci95": [
+     0.4849,
+     0.6463
+    ],
+    "net": 11.0
+   },
+   "USD/CAD": {
+    "n": 112,
+    "winRate": 0.5089,
+    "ci95": [
+     0.4176,
+     0.5997
+    ],
+    "net": -3.7
+   }
+  },
+  "testByMonth": {
+   "2026-04": {
+    "n": 150,
+    "winRate": 0.5133,
+    "ci95": [
+     0.434,
+     0.592
+    ],
+    "net": -3.7
+   },
+   "2026-05": {
+    "n": 169,
+    "winRate": 0.5799,
+    "ci95": [
+     0.5045,
+     0.6517
+    ],
+    "net": 17.2
+   },
+   "2026-06": {
+    "n": 138,
+    "winRate": 0.5725,
+    "ci95": [
+     0.4891,
+     0.6519
+    ],
+    "net": 12.1
+   },
+   "2026-07": {
+    "n": 149,
+    "winRate": 0.604,
+    "ci95": [
+     0.5238,
+     0.679
+    ],
+    "net": 22.0
+   },
+   "2026-08": {
+    "n": 102,
+    "winRate": 0.6275,
+    "ci95": [
+     0.5306,
+     0.7151
+    ],
+    "net": 19.6
+   },
+   "2026-09": {
+    "n": 115,
+    "winRate": 0.487,
+    "ci95": [
+     0.3975,
+     0.5772
+    ],
+    "net": -8.6
+   },
+   "2026-10": {
+    "n": 37,
+    "winRate": 0.4324,
+    "ci95": [
+     0.2867,
+     0.5909
+    ],
+    "net": -6.6
+   }
+  },
+  "testSignalsPerPairPerDay": 1.1
+ },
+ "v2Reference": {
+  "config": {
+   "family": "band_extreme",
+   "pb": 1.0,
+   "range_atr": 2.0,
+   "body": 0.5,
+   "rsi": 70,
+   "mode": "fade",
+   "session": "all",
+   "expiry": 1
+  },
+  "train": {
+   "n": 12345,
+   "winRate": 0.529,
+   "ci95": [
+    0.5202,
+    0.5378
+   ],
+   "net": 63.9
+  },
+  "trainLate": {
+   "n": 12282,
+   "winRate": 0.5051,
+   "ci95": [
+    0.4963,
+    0.514
+   ],
+   "net": -494.4
+  },
+  "validation": {
+   "n": 5221,
+   "winRate": 0.5351,
+   "ci95": [
+    0.5216,
+    0.5486
+   ],
+   "net": 87.6
+  },
+  "validationLate": {
+   "n": 5194,
+   "winRate": 0.5077,
+   "ci95": [
+    0.4941,
+    0.5213
+   ],
+   "net": -183.7
+  },
+  "test": {
+   "n": 6261,
+   "winRate": 0.5196,
+   "ci95": [
+    0.5072,
+    0.5319
+   ],
+   "net": -80.3
+  },
+  "testLate": {
+   "n": 6204,
+   "winRate": 0.5187,
+   "ci95": [
+    0.5063,
+    0.5311
+   ],
+   "net": -89.8
+  },
+  "testByPair": {
+   "AUD/JPY": {
+    "n": 863,
+    "winRate": 0.5632,
+    "ci95": [
+     0.5299,
+     0.5959
+    ],
+    "net": 60.4
+   },
+   "AUD/USD": {
+    "n": 1045,
+    "winRate": 0.5493,
+    "ci95": [
+     0.519,
+     0.5792
+    ],
+    "net": 45.6
+   },
+   "EUR/JPY": {
+    "n": 910,
+    "winRate": 0.4978,
+    "ci95": [
+     0.4654,
+     0.5302
+    ],
+    "net": -49.3
+   },
+   "EUR/USD": {
+    "n": 1147,
+    "winRate": 0.51,
+    "ci95": [
+     0.4811,
+     0.5389
+    ],
+    "net": -35.5
+   },
+   "GBP/USD": {
+    "n": 1172,
+    "winRate": 0.5154,
+    "ci95": [
+     0.4867,
+     0.5439
+    ],
+    "net": -24.4
+   },
+   "USD/CAD": {
+    "n": 1124,
+    "winRate": 0.4902,
+    "ci95": [
+     0.4611,
+     0.5194
+    ],
+    "net": -77.1
+   }
+  },
+  "testByMonth": {
+   "2026-04": {
+    "n": 1008,
+    "winRate": 0.5139,
+    "ci95": [
+     0.483,
+     0.5446
+    ],
+    "net": -23.8
+   },
+   "2026-05": {
+    "n": 1100,
+    "winRate": 0.5545,
+    "ci95": [
+     0.525,
+     0.5837
+    ],
+    "net": 59.0
+   },
+   "2026-06": {
+    "n": 1079,
+    "winRate": 0.5255,
+    "ci95": [
+     0.4957,
+     0.5551
+    ],
+    "net": -1.7
+   },
+   "2026-07": {
+    "n": 1017,
+    "winRate": 0.5359,
+    "ci95": [
+     0.5052,
+     0.5663
+    ],
+    "net": 18.5
+   },
+   "2026-08": {
+    "n": 773,
+    "winRate": 0.5343,
+    "ci95": [
+     0.499,
+     0.5692
+    ],
+    "net": 11.7
+   },
+   "2026-09": {
+    "n": 865,
+    "winRate": 0.4671,
+    "ci95": [
+     0.434,
+     0.5004
+    ],
+    "net": -97.4
+   },
+   "2026-10": {
+    "n": 419,
+    "winRate": 0.4678,
+    "ci95": [
+     0.4205,
+     0.5156
+    ],
+    "net": -46.6
+   }
+  },
+  "testSignalsPerPairPerDay": 7.62
+ },
+ "verdict": {
+  "code": "FAILED_TEST",
+  "text": "Chuna hua tareeqa validation paas kar gaya lekin aakhri TEST par break-even se pakke taur par upar nahin raha. Is par paisa na lagayein."
+ }
+}
