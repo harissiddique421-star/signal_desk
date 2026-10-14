@@ -196,7 +196,20 @@ Win rates this far below 50 % are not a market effect: they mean the feed's cand
 - the next candle opens at the previous close in only **0–10 %** of minutes (OANDA tick-built candles: nearly always within a pip); the gap is ~30 % of the candle's range and leans back into the previous candle (regression of gap on body ≈ −0.4);
 - on **every** v2 signal the gap pointed against the signal candle.
 
-So on this feed consecutive 1-minute candles overlap or are smoothed, and v2 (built on continuous OANDA candles) measures as badly wrong. Do not "reverse" the signals: a win rate produced by a smoothed feed cannot be traded on a real price. Next step: re-run the same test on a tick-built feed (OANDA v20 practice M1 candles) before drawing any conclusion about v2 itself. Until then the verdict on today's market is: **not demonstrated — do not trade it with money.**
+So on this feed consecutive 1-minute candles overlap or are smoothed, and v2 (built on continuous OANDA candles) measures as badly wrong. Do not "reverse" the signals: a win rate produced by a smoothed feed cannot be traded on a real price. Next step: re-run the same test on a tick-built feed (OANDA v20 practice M1 candles) before drawing any conclusion about v2 itself. The Dukascopy test below did exactly that.
+
+### Results on Dukascopy (tick-built, 2026-08-16 → 2026-10-14, 6 pairs, weekdays)
+
+Dukascopy's candles behave like the OANDA history: the next open sits close to the previous close (median jump 4–11 % of the range vs ~30 % on Twelve Data) and shows no lean back into the previous candle (regression slope ≈ 0 vs −0.4). So this is the fair test of the rules themselves.
+
+| Version | Decided | Win rate (95 % CI) | One candle late | Net @85 % | Verdict |
+|---|---|---|---|---|---|
+| v2 Fade | 2,114 | **47.7 % (45.6–49.9 %)** | 49.9 % | −247 | LOSING |
+| v3 ML (shadow) | 956 | 51.1 % (47.9–54.2 %) | 51.3 % | −53 | not demonstrated |
+
+- v2 is 7.9 points below its 2020 TEST result (z = −6.0). Every pair is between 44 % and 52 %. **The 2018–2020 edge is not present in today's market.** Changing the data provider will not bring it back.
+- The New York session scored 57.6 % (n = 439). That is one of five sessions picked after the fact, and the same session was v2's weakest in 2020 (54.2 %). Treat it as noise unless a future, untouched period confirms it.
+- v3 is not significantly better than v2 (p = 0.09) and is below break-even.
 
 ## 7. Limitations
 
