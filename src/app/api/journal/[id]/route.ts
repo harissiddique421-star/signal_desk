@@ -20,6 +20,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         entry_price: body.entryPrice ?? null,
         exit_price: body.exitPrice ?? null,
         payout_percent: body.payoutPercent ?? null,
+        entry_delay_seconds: body.entryDelaySeconds ?? null,
+        result_source: body.resultSource ?? "UNVERIFIED",
         notes: body.notes ?? null,
         resolved_at: body.outcome === "UNRESOLVED" ? null : new Date().toISOString(),
       })

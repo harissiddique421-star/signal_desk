@@ -81,6 +81,8 @@ export interface JournalRow {
   entry_price: number | null;
   exit_price: number | null;
   payout_percent: number | null;
+  entry_delay_seconds: number | null;
+  result_source: "UNVERIFIED" | "BROKER_MANUAL" | "FEED_ESTIMATE";
   notes: string | null;
 }
 

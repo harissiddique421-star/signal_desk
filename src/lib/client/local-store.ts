@@ -16,6 +16,8 @@ export interface LocalJournalEntry {
   agreementScore: number;
   ruleVersion: string;
   outcome: Outcome;
+  entryDelaySeconds?: number | null;
+  resultSource?: "UNVERIFIED" | "BROKER_MANUAL" | "FEED_ESTIMATE";
   notes?: string;
 }
 
