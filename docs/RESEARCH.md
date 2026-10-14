@@ -182,6 +182,22 @@ The biggest open limitation (§7.3) is that every result above comes from 2018�
 
 Nothing is tuned on this data. It answers one question: does the edge measured in 2020 still exist on today's feed? If v2 shows LOSING, stop using it; if UNPROVEN, treat it as unproven. The pipeline was checked offline against a mock of the documented API shape; the first real run is the first contact with the live API.
 
+### First results on Twelve Data (2026-08-15 → 2026-10-14, 6 pairs)
+
+| | Decided | Win rate | One candle late |
+|---|---|---|---|
+| v2, all minutes (first run) | 3,231 | 29.3 % | 57.7 % |
+| v2, weekdays only (after the market-hours gate) | 1,843 | **12.8 %** (11.3–14.4 %) | 49.5 % |
+| v2, weekdays, scored from the signal candle's close | 1,830 | 15–30 % by pair | — |
+
+Win rates this far below 50 % are not a market effect: they mean the feed's candles carry strong artificial continuation from one minute to the next. Measured on weekday minutes:
+
+- the feed returns **~25,000 weekend candles per pair** (market closed) — the engine now refuses them (`data.marketHours`);
+- the next candle opens at the previous close in only **0–10 %** of minutes (OANDA tick-built candles: nearly always within a pip); the gap is ~30 % of the candle's range and leans back into the previous candle (regression of gap on body ≈ −0.4);
+- on **every** v2 signal the gap pointed against the signal candle.
+
+So on this feed consecutive 1-minute candles overlap or are smoothed, and v2 (built on continuous OANDA candles) measures as badly wrong. Do not "reverse" the signals: a win rate produced by a smoothed feed cannot be traded on a real price. Next step: re-run the same test on a tick-built feed (OANDA v20 practice M1 candles) before drawing any conclusion about v2 itself. Until then the verdict on today's market is: **not demonstrated — do not trade it with money.**
+
 ## 7. Limitations
 
 1. OANDA mid candles ≠ Twelve Data ≠ Quotex quotes. Reversal effects at 1 minute are sensitive to how a feed builds its candles; re-check on the live feed before using real money.

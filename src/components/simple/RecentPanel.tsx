@@ -16,6 +16,7 @@ interface Verdict {
   text: string;
 }
 interface Recent {
+  data?: Record<string, { feed?: { continuousOpenShare: number | null } }>;
   generatedAt: string | null;
   period: { from: string; to: string } | null;
   payout: number;
@@ -53,6 +54,12 @@ export function RecentPanel() {
   }
   const v2 = r.v2;
   const v3 = r.v3;
+  // Share of minutes where the next candle opens at the previous close. A tick-built
+  // feed is ~1; far below means the feed's candles are not a continuous price series.
+  const cont = Object.values(r.data ?? {})
+    .map((d) => d.feed?.continuousOpenShare)
+    .filter((x): x is number => typeof x === "number");
+  const feedSuspect = cont.length > 0 && cont.reduce((a, b) => a + b, 0) / cont.length < 0.5;
   const row = (label: string, s: Stat, late: Stat) => (
     <tr className="border-t border-white/5 align-top">
       <td className="py-1.5 pr-2">{label}</td>
@@ -71,6 +78,11 @@ export function RecentPanel() {
         {fmtDateTime(r.period.from)} se {fmtDateTime(r.period.to)} tak · Twelve Data (wohi feed jo app live use karti hai) · {r.opportunities.toLocaleString()} moqay · barabar ke liye {pct(r.breakEven)} chahiye.
       </p>
       <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${tone[v2.verdict.code]}`}>v2: {v2.verdict.text}</p>
+      {feedSuspect && (
+        <p className="mt-2 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn" data-testid="feed-warning">
+          Is feed ki candles lagatar price nahin dikhatin: agli candle pichli candle ke close se shuru nahin hoti. Is wajah se yeh nateeja feed ki banawat se bigda ho sakta hai. Signal ulta kar ke trade na karein — yeh bhi isi bigaad ka nateeja hoga.
+        </p>
+      )}
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="text-muted">
