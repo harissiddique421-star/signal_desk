@@ -1,3 +1,5 @@
+import type { SignalMode } from "../config/presets";
+
 /**
  * When the app checks the market after each candle closes.
  *
@@ -19,9 +21,20 @@ export function lastAttemptOffsetMs(): number {
 }
 
 /** Delay from `serverNow` to the first check after the next candle closes. */
-export function msUntilFirstScan(serverNow: number): number {
+export function msUntilFirstScan(serverNow: number, mode?: SignalMode): number {
+  if (mode === "FAST") {
+    // FAST checks BEFORE the candle closes, so the signal arrives ahead of the trade candle.
+    const d = FAST_SCAN_AT_MS - (serverNow % 60_000);
+    return d > 0 ? d : d + 60_000;
+  }
   return 60_000 - (serverNow % 60_000) + SCAN_FIRST_OFFSET_MS;
 }
+
+/**
+ * FAST first check: second 45 of the minute. Retries (49 s, 53 s) still land before the
+ * candle closes, leaving ~7–15 s to get ready before the trade candle starts.
+ */
+export const FAST_SCAN_AT_MS = 45_000;
 
 /** Feed timing counters kept on the device: on which attempt the finished candle was available. */
 export interface FeedStats {
