@@ -211,6 +211,24 @@ Dukascopy's candles behave like the OANDA history: the next open sits close to t
 - The New York session scored 57.6 % (n = 439). That is one of five sessions picked after the fact, and the same session was v2's weakest in 2020 (54.2 %). Treat it as noise unless a future, untouched period confirms it.
 - v3 is not significantly better than v2 (p = 0.09) and is below break-even.
 
+## 12. New strategy search (v4), pre-registered — 2026-10-14
+
+Protocol fixed in `scripts/research/search_v4.py` before any result: Dukascopy mid candles 2024-08-15 → 2026-10-14, 6 pairs; TRAIN to 2025-09-30, VALIDATION 2025-10 → 2026-03, TEST 2026-04 → 2026-10; 450 rule variants (band extremes, streaks, RSI extremes, wick rejection, breakouts, 15-minute moves; each as fade and as momentum) × 5 sessions × 1- and 2-minute expiry = **4,500 configurations**; payout 90 % → break-even 52.63 %. Negative control on synthetic random walks: TRAIN leaders fell to ~50 % on VALIDATION and the verdict was NONE.
+
+All 20 TRAIN leaders were variants of the same idea as v2 — fade a large candle that closed beyond the Bollinger band with RSI stretched, 1-minute expiry. No streak, breakout, wick, momentum or 2-minute rule made the list.
+
+Chosen on VALIDATION: **close ≥ 20 % of the band width beyond the band (%B ≥ 1.2 / ≤ −0.2), range ≥ 3 × ATR(14), body ≥ 50 %, RSI(14) ≥ 75 / ≤ 25 → trade the opposite direction, 1-minute expiry, 00–21 UTC.**
+
+| Split | Decided | Win rate (95 % CI) | One candle late | Net @90 % |
+|---|---|---|---|---|
+| TRAIN | 1,507 | 56.7 % (54.2–59.2) | 49.4 % | +116 |
+| VALIDATION | 591 | 57.2 % (53.2–61.1) | 51.4 % | +51 |
+| **TEST** | **860** | **55.8 % (52.5–59.1)** | 54.0 % | **+52** |
+
+**Verdict by the pre-set rule: FAILED_TEST** — the TEST lower bound (52.48 %) is just below break-even (52.63 %). About 1.1 signals per pair per day. TEST by month: 51–63 % from April to August, then 48.7 % (Sep) and 43 % (Oct, 37 trades), the same recent weakness the 60-day check (§11) showed. Intervals are somewhat optimistic because signals on different pairs in the same minute are correlated.
+
+Reading: there is still a faint exhaustion-reversal effect in very large 1-minute candles, but it is not demonstrated above break-even, it has weakened in the last two months, and it depends on entering within seconds. **Not a strategy to trade with money.** The only honest next step is a forward test: run it in shadow mode / on a demo account and promote it only if ≥ 300 live demo trades clear break-even.
+
 ## 7. Limitations
 
 1. OANDA mid candles ≠ Twelve Data ≠ Quotex quotes. Reversal effects at 1 minute are sensitive to how a feed builds its candles; re-check on the live feed before using real money.
