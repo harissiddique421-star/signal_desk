@@ -1,13 +1,342 @@
 {
- "generatedAt": null,
+ "generatedAt": "2026-10-14T04:33:11.412Z",
  "source": "Twelve Data 1-minute candles (the feed the live app uses)",
- "period": null,
+ "period": {
+  "from": "2026-08-15T04:17:00.000Z",
+  "to": "2026-10-14T04:15:00.000Z"
+ },
  "payout": 0.85,
  "breakEven": 0.5405,
- "opportunities": 0,
+ "opportunities": 517668,
  "minTradesForVerdict": 200,
  "outcomeRule": "Same as the app: entry = open of the candle after the signal candle, expiry = its close; late = one full candle later. Ties refund and are excluded.",
- "data": {},
- "v2": null,
- "v3": null
+ "data": {
+  "AUD/JPY": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  },
+  "AUD/USD": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  },
+  "EUR/JPY": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  },
+  "EUR/USD": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  },
+  "GBP/USD": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  },
+  "USD/CAD": {
+   "candles": 86398,
+   "minutesSpanned": 86399,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-08-15T04:17:00.000Z",
+   "last": "2026-10-14T04:15:00.000Z"
+  }
+ },
+ "v2": {
+  "onTime": {
+   "n": 3231,
+   "signals": 3335,
+   "winRate": 0.2934,
+   "ci95": [
+    0.278,
+    0.3093
+   ],
+   "net": -1477.2,
+   "maxLosingStreak": 53,
+   "maxDrawdown": 1487.1
+  },
+  "late": {
+   "n": 3240,
+   "signals": 3335,
+   "winRate": 0.5772,
+   "ci95": [
+    0.5601,
+    0.5941
+   ],
+   "net": 219.5,
+   "maxLosingStreak": 19,
+   "maxDrawdown": 38.5
+  },
+  "verdict": {
+   "code": "LOSING",
+   "text": "Naye data par yeh version break-even se pakke taur par neeche hai — is par paisa na lagayein."
+  },
+  "vsHistoricalTest": {
+   "historical": {
+    "n": 4420,
+    "winRate": 0.5561,
+    "ci95": [
+     0.5414,
+     0.5707
+    ],
+    "net": 127.3,
+    "coverage": 0.00873,
+    "signals": 4551
+   },
+   "diff": -0.2627,
+   "z": -22.84,
+   "pValue": 0
+  },
+  "byPair": {
+   "AUD/JPY": {
+    "n": 573,
+    "signals": 573,
+    "winRate": 0.4625,
+    "ci95": [
+     0.422,
+     0.5034
+    ],
+    "net": -82.75,
+    "maxLosingStreak": 17,
+    "maxDrawdown": 88.35
+   },
+   "AUD/USD": {
+    "n": 659,
+    "signals": 693,
+    "winRate": 0.3505,
+    "ci95": [
+     0.3151,
+     0.3877
+    ],
+    "net": -231.65,
+    "maxLosingStreak": 27,
+    "maxDrawdown": 237.25
+   },
+   "EUR/JPY": {
+    "n": 599,
+    "signals": 599,
+    "winRate": 0.2988,
+    "ci95": [
+     0.2635,
+     0.3367
+    ],
+    "net": -267.85,
+    "maxLosingStreak": 30,
+    "maxDrawdown": 277.05
+   },
+   "EUR/USD": {
+    "n": 513,
+    "signals": 548,
+    "winRate": 0.1852,
+    "ci95": [
+     0.154,
+     0.2211
+    ],
+    "net": -337.25,
+    "maxLosingStreak": 25,
+    "maxDrawdown": 338.1
+   },
+   "GBP/USD": {
+    "n": 429,
+    "signals": 443,
+    "winRate": 0.1795,
+    "ci95": [
+     0.1461,
+     0.2186
+    ],
+    "net": -286.55,
+    "maxLosingStreak": 19,
+    "maxDrawdown": 286.55
+   },
+   "USD/CAD": {
+    "n": 458,
+    "signals": 479,
+    "winRate": 0.2205,
+    "ci95": [
+     0.185,
+     0.2607
+    ],
+    "net": -271.15,
+    "maxLosingStreak": 27,
+    "maxDrawdown": 271.15
+   }
+  },
+  "bySession": {
+   "Asia 00-07": {
+    "n": 1057,
+    "signals": 1091,
+    "winRate": 0.2592,
+    "ci95": [
+     0.2337,
+     0.2865
+    ],
+    "net": -550.1,
+    "maxLosingStreak": 52,
+    "maxDrawdown": 555.2
+   },
+   "London 07-12": {
+    "n": 654,
+    "signals": 673,
+    "winRate": 0.3012,
+    "ci95": [
+     0.2673,
+     0.3375
+    ],
+    "net": -289.55,
+    "maxLosingStreak": 18,
+    "maxDrawdown": 296.6
+   },
+   "London/NY 12-16": {
+    "n": 817,
+    "signals": 843,
+    "winRate": 0.257,
+    "ci95": [
+     0.2283,
+     0.2881
+    ],
+    "net": -428.5,
+    "maxLosingStreak": 42,
+    "maxDrawdown": 429.05
+   },
+   "New York 16-21": {
+    "n": 703,
+    "signals": 728,
+    "winRate": 0.3798,
+    "ci95": [
+     0.3447,
+     0.4162
+    ],
+    "net": -209.05,
+    "maxLosingStreak": 22,
+    "maxDrawdown": 211.4
+   }
+  }
+ },
+ "v3": {
+  "onTime": {
+   "n": 1194,
+   "signals": 1249,
+   "winRate": 0.5008,
+   "ci95": [
+    0.4725,
+    0.5292
+   ],
+   "net": -87.7,
+   "maxLosingStreak": 21,
+   "maxDrawdown": 102.35
+  },
+  "late": {
+   "n": 1221,
+   "signals": 1249,
+   "winRate": 0.5692,
+   "ci95": [
+    0.5413,
+    0.5967
+   ],
+   "net": 64.75,
+   "maxLosingStreak": 9,
+   "maxDrawdown": 30.85
+  },
+  "verdict": {
+   "code": "LOSING",
+   "text": "Naye data par yeh version break-even se pakke taur par neeche hai — is par paisa na lagayein."
+  },
+  "vsV2": {
+   "diff": 0.2074,
+   "z": 12.84,
+   "pValue": 0
+  },
+  "byPair": {
+   "AUD/JPY": {
+    "n": 347,
+    "signals": 347,
+    "winRate": 0.6254,
+    "ci95": [
+     0.5733,
+     0.6747
+    ],
+    "net": 54.45,
+    "maxLosingStreak": 9,
+    "maxDrawdown": 12.45
+   },
+   "AUD/USD": {
+    "n": 239,
+    "signals": 265,
+    "winRate": 0.59,
+    "ci95": [
+     0.5267,
+     0.6504
+    ],
+    "net": 21.85,
+    "maxLosingStreak": 11,
+    "maxDrawdown": 17.15
+   },
+   "EUR/JPY": {
+    "n": 267,
+    "signals": 267,
+    "winRate": 0.397,
+    "ci95": [
+     0.3402,
+     0.4568
+    ],
+    "net": -70.9,
+    "maxLosingStreak": 10,
+    "maxDrawdown": 79.2
+   },
+   "EUR/USD": {
+    "n": 89,
+    "signals": 99,
+    "winRate": 0.236,
+    "ci95": [
+     0.1598,
+     0.3339
+    ],
+    "net": -50.15,
+    "maxLosingStreak": 11,
+    "maxDrawdown": 50.85
+   },
+   "GBP/USD": {
+    "n": 200,
+    "signals": 213,
+    "winRate": 0.405,
+    "ci95": [
+     0.3394,
+     0.4742
+    ],
+    "net": -50.15,
+    "maxLosingStreak": 16,
+    "maxDrawdown": 51
+   },
+   "USD/CAD": {
+    "n": 52,
+    "signals": 58,
+    "winRate": 0.6154,
+    "ci95": [
+     0.4796,
+     0.7353
+    ],
+    "net": 7.2,
+    "maxLosingStreak": 3,
+    "maxDrawdown": 7.05
+   }
+  }
+ }
 }
