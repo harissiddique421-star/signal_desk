@@ -52,7 +52,8 @@ export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
     minAtrPercentile: 0,
     maxAtrPercentile: 100,
     shockCandleAtr: 5,
-    maxMissingCandles: 2,
+    // Quiet minutes with no ticks are common on the free feed; 2 blocked FAST most of the day.
+    maxMissingCandles: 10,
     requireMtfAgreement: false,
     entryWindowSeconds: 15,
   },
