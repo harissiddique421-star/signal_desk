@@ -45,6 +45,7 @@ const UR = {
  */
 export function evaluateSignal(input: EngineInput): SignalResult {
   const cfg = input.config ?? DEFAULT_RULES;
+  const fastMode = cfg.version === "rules-fast-confluence-experimental";
   const tfMs = cfg.timeframeSeconds * 1000;
   const checks: Check[] = [];
   const reasons: string[] = [];
@@ -180,7 +181,7 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   const atrSample = (a.slice(-cfg.volatilityWindow).filter((x) => x !== null) as number[]);
   const atrPct = percentileRank(atrSample, atrNow);
   const lastRange = lastC.high - lastC.low;
-  if (!fadeMode) {
+  if (!fadeMode && !fastMode) {
     // TREND_V1 avoids quiet markets and shock candles. FADE_V2 trades exactly the
     // large candles these filters remove, so it uses its own setup checks instead.
     addCheck(
@@ -305,7 +306,37 @@ export function evaluateSignal(input: EngineInput): SignalResult {
     return decideFade({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen });
   }
   const want: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
-  const supporting = evidence.filter((e) => e.direction === want).length;
+  const supporting = want === "NEUTRAL" ? 0 : evidence.filter((e) => e.direction === want).length;
+
+  // FAST is an explicitly permissive, user-directed experimental vote mode.
+  // Keep source, symbol, candle integrity/freshness, market-hours and entry-window
+  // gates above/below, but do not silently apply the stricter trend/structure/RSI/level filters.
+  if (fastMode) {
+    addCheck("decision.fastDirection", "Directional vote", want !== "NEUTRAL", want === "NEUTRAL" ? "Bullish and bearish evidence are tied; no direction to display" : `${want} has the stronger weighted evidence`);
+    addCheck("decision.fastVotes", "Matching strategy votes", supporting >= 2, `${supporting} evidence items match ${want}; FAST threshold is 2`);
+    const metrics: SignalMetrics = {
+      atrPercentile: round(atrPct, 1),
+      lastRangeAtr: round(lastRange / atrPrev, 3),
+      bodyRatio: round(an.bodyRatio, 3),
+      lastCandleDir: lastC.close > lastC.open ? 1 : lastC.close < lastC.open ? -1 : 0,
+      rsi: round(rv, 2),
+      macdHistogram: h,
+      bbPercentB: round(pb, 3),
+      emaTrend: emaDir,
+      structure: ms.state,
+      mtfTrend: mtfDir,
+      opposingLevelAtr: null,
+      regime: atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : emaDir !== "NEUTRAL" && emaDir === msDir ? "TREND" : ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
+    };
+    base.metrics = metrics;
+    addCheck("timing.window", "Entry window", windowOpen, windowOpen ? `Act before ${new Date(base.entryWindowEnd).toISOString()}` : "Entry window already passed — signal expired");
+    const passedFast = reasons.length === 0;
+    base.engineDecision = sourceIndependentDecision(checks, want);
+    if (passedFast) base.decision = want === "BULLISH" ? "CALL" : want === "BEARISH" ? "PUT" : "NO_TRADE";
+    warnings.push("FAST mode is permissive and experimental; 2 matching evidence items are not 2 independently validated strategies.");
+    return finalize(base, input, warnings);
+  }
+
   addCheck("decision.agreement", "Indicator agreement", Math.abs(agreement) >= cfg.minAgreement && want !== "NEUTRAL", `score ${agreement.toFixed(2)} (need ±${cfg.minAgreement})${Math.min(bull, bear) > 0.6 * Math.max(bull, bear) ? " — evidence contradictory" : ""}`);
   addCheck("decision.support", "Supporting evidence", supporting >= cfg.minSupportingEvidence, `${supporting} items agree (need ${cfg.minSupportingEvidence})`);
   addCheck("decision.trend", "Trend alignment", emaDir === want, `EMA trend ${emaDir.toLowerCase()} vs direction ${want.toLowerCase()}`);
