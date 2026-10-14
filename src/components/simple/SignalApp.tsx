@@ -245,7 +245,7 @@ export function SignalApp() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       const serverNow = Date.now() + offset;
-      const delay = msUntilFirstScan(serverNow);
+      const delay = msUntilFirstScan(serverNow, settings.mode);
       setNextScanAt(Date.now() + delay);
       timer = setTimeout(() => void run(1), delay);
     };
@@ -278,6 +278,9 @@ export function SignalApp() {
   const windowLeft = result?.entryWindowEnd && now ? Math.ceil((result.entryWindowEnd - serverNow) / 1000) : null;
   const expired = tradable && windowLeft !== null && windowLeft <= 0;
   const showSignal = tradable && !expired && !paused;
+  // Seconds until the trade candle starts (FAST gives the signal before it opens).
+  const startsIn = showSignal && result?.entryWindowStart && now ? Math.ceil((result.entryWindowStart - serverNow) / 1000) : null;
+  const early = startsIn !== null && startsIn > 0;
   const verdict: "BUY" | "SELL" | "WAIT" = showSignal ? (result!.decision === "CALL" ? "BUY" : "SELL") : "WAIT";
   const nextIn = nextScanAt && now ? Math.max(0, Math.ceil((nextScanAt - now) / 1000)) : null;
   const { wins, losses } = todaysTally(tracked, serverNow, settings.mode);
@@ -298,8 +301,10 @@ export function SignalApp() {
     subline = dailyStop ? "Signal mila, lekin aaj ki haar ki had poori ho chuki" : "Signal mila, lekin strategy abhi ruki hui hai";
     reason = dailyStop ? "Aaj mazeed trade na lein. Kal phir dekhein." : CHECK_TEXT["health.degraded"];
   } else if (showSignal) {
-    const demo = settings.mode === "V4" ? "DEMO account par: " : "";
-    subline = demo + (verdict === "BUY" ? "Quotex par UP (CALL) — 1 minute expiry" : "Quotex par DOWN (PUT) — 1 minute expiry");
+    const demo = settings.mode === "V4" || settings.mode === "FAST" ? "DEMO account par: " : "";
+    const side = verdict === "BUY" ? "UP (CALL)" : "DOWN (PUT)";
+    subline = early ? `${demo}Agli candle par ${side} — tayyar rahein` : demo + `Quotex par ${side} — 1 minute expiry`;
+    if (early) reason = `Trade ${fmtTime(result.entryWindowStart)} wali candle par lena hai, us ke shuru hote hi entry karein.`;
   } else if (expired) {
     subline = `${result.decision === "CALL" ? "BUY" : "SELL"} signal tha, lekin entry ka waqt nikal gaya`;
     reason = "Agli candle ka intezar karein.";
@@ -409,9 +414,14 @@ export function SignalApp() {
             <p className="mt-3 text-base font-medium">{subline}</p>
             {reason && <p className="mt-1 text-sm text-muted">{reason}</p>}
 
-            {showSignal && windowLeft !== null && (
+            {showSignal && early && (
+              <p className="mx-auto mt-4 w-fit rounded-full px-4 py-1.5 text-sm font-semibold" style={{ background: theme.glow, color: theme.color }} data-testid="starts-in">
+                Signal wali candle shuru hone mein {startsIn}s baqi
+              </p>
+            )}
+            {showSignal && !early && windowLeft !== null && (
               <p className="mx-auto mt-4 w-fit rounded-full px-4 py-1.5 text-sm font-semibold" style={{ background: theme.glow, color: theme.color }}>
-                Entry ke liye {windowLeft}s baqi
+                Abhi entry lein — {windowLeft}s baqi
               </p>
             )}
             {!showSignal && nextIn !== null && provider && (
@@ -461,7 +471,9 @@ export function SignalApp() {
               {checkBusy ? "Market dekh raha hai…" : "🎯 Abhi check karein"}
             </button>
             <p className="mt-2 text-center text-xs text-faint">
-              Sirf tab BUY/SELL deta hai jab poora setup mojood ho. Zabardasti direction ab nahin di jaati — asli data par wo ~49% sahi thi.
+              {settings.mode === "FAST"
+                ? "⚡ Fast: har minute ke 45ve second par agli candle ka UP/DOWN deta hai. Yeh trend ki taraf ka andaza hai, pakki prediction nahin."
+                : "Sirf tab BUY/SELL deta hai jab poora setup mojood ho. Zabardasti direction ab nahin di jaati — asli data par wo ~49% sahi thi."}
             </p>
           </section>
 
