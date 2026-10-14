@@ -1,14 +1,484 @@
 {
- "generatedAt": null,
+ "generatedAt": "2026-10-14T08:06:55.953Z",
  "sourceId": "dukascopy",
  "source": "Dukascopy 1-minute mid candles (tick-built, history only)",
  "liveFeed": false,
- "period": null,
+ "period": {
+  "from": "2026-10-11T08:07:00.000Z",
+  "to": "2026-10-14T08:05:00.000Z"
+ },
  "payout": 0.85,
  "breakEven": 0.5405,
- "opportunities": 0,
+ "opportunities": 25189,
  "minTradesForVerdict": 200,
- "data": {},
- "v2": null,
- "v3": null
+ "outcomeRule": "Same as the app: entry = open of the candle after the signal candle, expiry = its close; late = one full candle later. Ties refund and are excluded.",
+ "data": {
+  "AUD/JPY": {
+   "candles": 4319,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.1868,
+    "continuousOpenShare": 0.0852,
+    "openEqualsPrevOpenShare": 0.0477,
+    "openInsidePrevRangeShare": 0.8539,
+    "closeEqualsOpenTwoAheadShare": 0.0415,
+    "gapOnBodySlope": -0.0125,
+    "medianGapToRange": 0.1176,
+    "v2GapWithSignal": 7,
+    "v2GapAgainstSignal": 8,
+    "v2GapZero": 1,
+    "v2EntryAtSignalClose": {
+     "n": 15,
+     "winRate": 0.2667,
+     "ci95": [
+      0.109,
+      0.5195
+     ]
+    }
+   }
+  },
+  "AUD/USD": {
+   "candles": 4319,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.195,
+    "continuousOpenShare": 0.0889,
+    "openEqualsPrevOpenShare": 0.0691,
+    "openInsidePrevRangeShare": 0.8429,
+    "closeEqualsOpenTwoAheadShare": 0.0677,
+    "gapOnBodySlope": -0.0229,
+    "medianGapToRange": 0.1111,
+    "v2GapWithSignal": 8,
+    "v2GapAgainstSignal": 14,
+    "v2GapZero": 2,
+    "v2EntryAtSignalClose": {
+     "n": 23,
+     "winRate": 0.3913,
+     "ci95": [
+      0.2216,
+      0.5921
+     ]
+    }
+   }
+  },
+  "EUR/JPY": {
+   "candles": 4317,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.1872,
+    "continuousOpenShare": 0.1067,
+    "openEqualsPrevOpenShare": 0.0299,
+    "openInsidePrevRangeShare": 0.8774,
+    "closeEqualsOpenTwoAheadShare": 0.0263,
+    "gapOnBodySlope": -0.0002,
+    "medianGapToRange": 0.0667,
+    "v2GapWithSignal": 10,
+    "v2GapAgainstSignal": 7,
+    "v2GapZero": 2,
+    "v2EntryAtSignalClose": {
+     "n": 19,
+     "winRate": 0.4211,
+     "ci95": [
+      0.2314,
+      0.6372
+     ]
+    }
+   }
+  },
+  "EUR/USD": {
+   "candles": 4317,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.1948,
+    "continuousOpenShare": 0.028,
+    "openEqualsPrevOpenShare": 0.0565,
+    "openInsidePrevRangeShare": 0.8517,
+    "closeEqualsOpenTwoAheadShare": 0.0537,
+    "gapOnBodySlope": -0.0044,
+    "medianGapToRange": 0.1,
+    "v2GapWithSignal": 12,
+    "v2GapAgainstSignal": 12,
+    "v2GapZero": 2,
+    "v2EntryAtSignalClose": {
+     "n": 25,
+     "winRate": 0.48,
+     "ci95": [
+      0.3003,
+      0.665
+     ]
+    }
+   }
+  },
+  "GBP/USD": {
+   "candles": 4318,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.1962,
+    "continuousOpenShare": 0.013,
+    "openEqualsPrevOpenShare": 0.0454,
+    "openInsidePrevRangeShare": 0.8594,
+    "closeEqualsOpenTwoAheadShare": 0.0502,
+    "gapOnBodySlope": -0.0162,
+    "medianGapToRange": 0.1034,
+    "v2GapWithSignal": 8,
+    "v2GapAgainstSignal": 8,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 15,
+     "winRate": 0.4,
+     "ci95": [
+      0.1982,
+      0.6425
+     ]
+    }
+   }
+  },
+  "USD/CAD": {
+   "candles": 4319,
+   "minutesSpanned": 4319,
+   "duplicates": 0,
+   "invalidRows": 0,
+   "first": "2026-10-11T08:07:00.000Z",
+   "last": "2026-10-14T08:05:00.000Z",
+   "feed": {
+    "weekendCandles": 773,
+    "flatCandleShare": 0.2012,
+    "continuousOpenShare": 0.0465,
+    "openEqualsPrevOpenShare": 0.0612,
+    "openInsidePrevRangeShare": 0.8449,
+    "closeEqualsOpenTwoAheadShare": 0.0629,
+    "gapOnBodySlope": 0.001,
+    "medianGapToRange": 0.1,
+    "v2GapWithSignal": 11,
+    "v2GapAgainstSignal": 8,
+    "v2GapZero": 0,
+    "v2EntryAtSignalClose": {
+     "n": 15,
+     "winRate": 0.4,
+     "ci95": [
+      0.1982,
+      0.6425
+     ]
+    }
+   }
+  }
+ },
+ "v2": {
+  "onTime": {
+   "n": 113,
+   "signals": 120,
+   "winRate": 0.4336,
+   "ci95": [
+    0.3459,
+    0.5257
+   ],
+   "net": -22.35,
+   "maxLosingStreak": 9,
+   "maxDrawdown": 29.1
+  },
+  "late": {
+   "n": 114,
+   "signals": 120,
+   "winRate": 0.4649,
+   "ci95": [
+    0.376,
+    0.5561
+   ],
+   "net": -15.95,
+   "maxLosingStreak": 7,
+   "maxDrawdown": 25.15
+  },
+  "verdict": {
+   "code": "TOO_FEW",
+   "text": "Sirf 113 trades — kam az kam 200 chahiye. Abhi faisla nahin ho sakta."
+  },
+  "vsHistoricalTest": {
+   "historical": {
+    "n": 4420,
+    "winRate": 0.5561,
+    "ci95": [
+     0.5414,
+     0.5707
+    ],
+    "net": 127.3,
+    "coverage": 0.00873,
+    "signals": 4551
+   },
+   "diff": -0.1225,
+   "z": -2.59,
+   "pValue": 0.0097
+  },
+  "byPair": {
+   "AUD/JPY": {
+    "n": 15,
+    "signals": 16,
+    "winRate": 0.2667,
+    "ci95": [
+     0.109,
+     0.5195
+    ],
+    "net": -7.6,
+    "maxLosingStreak": 3,
+    "maxDrawdown": 7.6
+   },
+   "AUD/USD": {
+    "n": 24,
+    "signals": 24,
+    "winRate": 0.4167,
+    "ci95": [
+     0.2447,
+     0.6117
+    ],
+    "net": -5.5,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 8.75
+   },
+   "EUR/JPY": {
+    "n": 18,
+    "signals": 19,
+    "winRate": 0.4444,
+    "ci95": [
+     0.2456,
+     0.6628
+    ],
+    "net": -3.2,
+    "maxLosingStreak": 3,
+    "maxDrawdown": 5.45
+   },
+   "EUR/USD": {
+    "n": 23,
+    "signals": 26,
+    "winRate": 0.5217,
+    "ci95": [
+     0.3296,
+     0.7076
+    ],
+    "net": -0.8,
+    "maxLosingStreak": 6,
+    "maxDrawdown": 6
+   },
+   "GBP/USD": {
+    "n": 15,
+    "signals": 16,
+    "winRate": 0.3333,
+    "ci95": [
+     0.1518,
+     0.5829
+    ],
+    "net": -5.75,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 7.45
+   },
+   "USD/CAD": {
+    "n": 18,
+    "signals": 19,
+    "winRate": 0.5556,
+    "ci95": [
+     0.3372,
+     0.7544
+    ],
+    "net": 0.5,
+    "maxLosingStreak": 2,
+    "maxDrawdown": 3.45
+   }
+  },
+  "bySession": {
+   "Asia 00-07": {
+    "n": 62,
+    "signals": 66,
+    "winRate": 0.3871,
+    "ci95": [
+     0.2758,
+     0.5115
+    ],
+    "net": -17.6,
+    "maxLosingStreak": 9,
+    "maxDrawdown": 22.8
+   },
+   "London 07-12": {
+    "n": 17,
+    "signals": 17,
+    "winRate": 0.3529,
+    "ci95": [
+     0.1731,
+     0.587
+    ],
+    "net": -5.9,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 7.45
+   },
+   "London/NY 12-16": {
+    "n": 14,
+    "signals": 14,
+    "winRate": 0.5,
+    "ci95": [
+     0.268,
+     0.732
+    ],
+    "net": -1.05,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 4.45
+   },
+   "New York 16-21": {
+    "n": 20,
+    "signals": 23,
+    "winRate": 0.6,
+    "ci95": [
+     0.3866,
+     0.7812
+    ],
+    "net": 2.2,
+    "maxLosingStreak": 3,
+    "maxDrawdown": 3.15
+   }
+  },
+  "byWeekPart": {
+   "weekday": {
+    "n": 113,
+    "signals": 120,
+    "winRate": 0.4336,
+    "ci95": [
+     0.3459,
+     0.5257
+    ],
+    "net": -22.35,
+    "maxLosingStreak": 9,
+    "maxDrawdown": 29.1
+   }
+  }
+ },
+ "v3": {
+  "onTime": {
+   "n": 51,
+   "signals": 53,
+   "winRate": 0.4706,
+   "ci95": [
+    0.3405,
+    0.6048
+   ],
+   "net": -6.6,
+   "maxLosingStreak": 5,
+   "maxDrawdown": 11.1
+  },
+  "late": {
+   "n": 49,
+   "signals": 53,
+   "winRate": 0.4082,
+   "ci95": [
+    0.2822,
+    0.5475
+   ],
+   "net": -12,
+   "maxLosingStreak": 7,
+   "maxDrawdown": 15.25
+  },
+  "verdict": {
+   "code": "TOO_FEW",
+   "text": "Sirf 51 trades — kam az kam 200 chahiye. Abhi faisla nahin ho sakta."
+  },
+  "vsV2": {
+   "diff": 0.037,
+   "z": 0.44,
+   "pValue": 0.659
+  },
+  "byPair": {
+   "AUD/JPY": {
+    "n": 13,
+    "signals": 14,
+    "winRate": 0.5385,
+    "ci95": [
+     0.2914,
+     0.7679
+    ],
+    "net": -0.05,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 4
+   },
+   "AUD/USD": {
+    "n": 9,
+    "signals": 10,
+    "winRate": 0.5556,
+    "ci95": [
+     0.2666,
+     0.8112
+    ],
+    "net": 0.25,
+    "maxLosingStreak": 2,
+    "maxDrawdown": 2.15
+   },
+   "EUR/JPY": {
+    "n": 9,
+    "signals": 9,
+    "winRate": 0.2222,
+    "ci95": [
+     0.0632,
+     0.5474
+    ],
+    "net": -5.3,
+    "maxLosingStreak": 5,
+    "maxDrawdown": 5.3
+   },
+   "EUR/USD": {
+    "n": 1,
+    "signals": 1,
+    "winRate": 1,
+    "ci95": [
+     0.2065,
+     1
+    ],
+    "net": 0.85,
+    "maxLosingStreak": 0,
+    "maxDrawdown": 0
+   },
+   "GBP/USD": {
+    "n": 14,
+    "signals": 14,
+    "winRate": 0.5714,
+    "ci95": [
+     0.3259,
+     0.7862
+    ],
+    "net": 0.8,
+    "maxLosingStreak": 4,
+    "maxDrawdown": 4
+   },
+   "USD/CAD": {
+    "n": 5,
+    "signals": 5,
+    "winRate": 0.2,
+    "ci95": [
+     0.0362,
+     0.6245
+    ],
+    "net": -3.15,
+    "maxLosingStreak": 3,
+    "maxDrawdown": 3.15
+   }
+  }
+ }
 }
