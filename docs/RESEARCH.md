@@ -229,6 +229,8 @@ Chosen on VALIDATION: **close ≥ 20 % of the band width beyond the band (%B ≥
 
 Reading: there is still a faint exhaustion-reversal effect in very large 1-minute candles, but it is not demonstrated above break-even, it has weakened in the last two months, and it depends on entering within seconds. **Not a strategy to trade with money.** The only honest next step is a forward test: run it in shadow mode / on a demo account and promote it only if ≥ 300 live demo trades clear break-even.
 
+**Shipped as a demo-only mode (V4).** The app's TypeScript engine reproduces the Python result exactly on the same candles (`scripts/research/v4-parity.ts`: 860 TEST trades, 55.81 %, identical per pair). Because Twelve Data's candles are distorted (§11), the forward test does not trust the app's own feed-based WIN/LOSS: each v4 signal is marked by hand with the result of the user's Quotex demo trade, and only those marks count toward the 300-trade verdict (Results → "v4 Demo forward test"). A daily loss limit (default 3) stops signals for the rest of the day; it limits damage, it does not raise accuracy.
+
 ## 7. Limitations
 
 1. OANDA mid candles ≠ Twelve Data ≠ Quotex quotes. Reversal effects at 1 minute are sensitive to how a feed builds its candles; re-check on the live feed before using real money.
