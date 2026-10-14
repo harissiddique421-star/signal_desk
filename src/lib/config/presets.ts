@@ -9,10 +9,12 @@ import type { RuleConfig } from "./rules";
  * NORMAL — TREND_V1 with looser agreement/level filters.
  * FAST   — EXPERIMENTAL TREND_V1 confluence mode. More permissive filters may produce more setups,
  *          but it is not validated or represented as profitable. Use for demo forward testing only.
+ * QQE    — EXPERIMENTAL QQE flip / support-resistance rejection / candle-run momentum on the
+ *          closed candle (non-repainting). Built from public indicator definitions; demo only.
  */
-export type SignalMode = "V4" | "V2" | "STRICT" | "NORMAL" | "FAST";
+export type SignalMode = "V4" | "V2" | "STRICT" | "NORMAL" | "FAST" | "QQE";
 
-export const SIGNAL_MODES: SignalMode[] = ["V4", "V2", "STRICT", "NORMAL", "FAST"];
+export const SIGNAL_MODES: SignalMode[] = ["V4", "V2", "STRICT", "NORMAL", "FAST", "QQE"];
 
 export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
   // DEMO ONLY. Chosen by the pre-registered search in scripts/research/search_v4.py on
@@ -57,6 +59,15 @@ export const MODE_OVERRIDES: Record<SignalMode, Partial<RuleConfig>> = {
     requireMtfAgreement: false,
     entryWindowSeconds: 15,
   },
+  QQE: {
+    version: "rules-qqe-sr-v1",
+    strategy: "QQE_SR",
+    // Same feed tolerance as FAST: quiet missing minutes and a one-candle-late feed are OK.
+    maxMissingCandles: 10,
+    requireMtfAgreement: false,
+    levelProximityAtr: 0.2,
+    entryWindowSeconds: 15,
+  },
 };
 
 export const MODE_LABEL: Record<SignalMode, string> = {
@@ -65,4 +76,5 @@ export const MODE_LABEL: Record<SignalMode, string> = {
   STRICT: "v1 Strict (old)",
   NORMAL: "v1 Normal (old)",
   FAST: "Fast Confluence (experimental)",
+  QQE: "QQE + S/R (experimental)",
 };

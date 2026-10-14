@@ -386,6 +386,11 @@ export function SignalApp() {
               <b>⚡ Fast — EXPERIMENTAL:</b> har minute agli candle ka UP/DOWN deta hai (indicators ka vote). Yeh pakki prediction nahin; sirf demo account par test karein.
             </p>
           )}
+          {settings.mode === "QQE" && (
+            <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn" data-testid="qqe-demo">
+              <b>QQE + S/R — EXPERIMENTAL:</b> 3 tareeqe: QQE line ka palatna, support/resistance se wick ke saath wapsi, ya lagatar 3 mazboot candles QQE ke saath. Candle band hone par signal (non-repaint), entry ke liye ~15s. Saabit nahin — sirf demo par.
+            </p>
+          )}
           {settings.mode === "V4" && (
             <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn" data-testid="v4-demo">
               <b>v4 DEMO:</b> yeh strategy abhi saabit nahin. Sirf Quotex ke <b>demo account</b> par lagayein. 300 demo trades ke baad Results mein faisla dikhega.
@@ -502,7 +507,7 @@ export function SignalApp() {
             <div className="seg" role="group" aria-label="Signal mode">
               {SIGNAL_MODES.map((m) => (
                 <button key={m} className="whitespace-nowrap text-sm" aria-pressed={settings.mode === m} onClick={() => setSettings({ ...settings, mode: m, ignoreHealth: false })}>
-                  {m === "FAST" ? "⚡ Fast" : m === "V4" ? "v4 Demo" : m === "V2" ? "v2" : m === "STRICT" ? "v1 S" : "v1 N"}
+                  {m === "QQE" ? "QQE" : m === "FAST" ? "⚡ Fast" : m === "V4" ? "v4 Demo" : m === "V2" ? "v2" : m === "STRICT" ? "v1 S" : "v1 N"}
                 </button>
               ))}
             </div>

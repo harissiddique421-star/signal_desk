@@ -13,7 +13,7 @@ export const RuleConfigSchema = z.object({
    *             Bollinger band with RSI at an extreme, traded AGAINST that candle.
    *             Parameters were chosen on TRAIN data only and checked on VALIDATION/TEST.
    */
-  strategy: z.enum(["TREND_V1", "FADE_V2"]).default("TREND_V1"),
+  strategy: z.enum(["TREND_V1", "FADE_V2", "QQE_SR"]).default("TREND_V1"),
   timeframeSeconds: z.literal(60).default(60),
   expirySeconds: z.literal(60).default(60),
 
@@ -82,6 +82,14 @@ export const RuleConfigSchema = z.object({
    * (true) or with the ATR before it (false, v2). v4 was searched with the former.
    */
   fadeRangeVsAtrIncludingSignal: z.boolean().default(false),
+  // QQE_SR parameters (QQE momentum flip, support/resistance rejection, candle-run momentum)
+  qqeRsiPeriod: z.number().int().min(2).max(100).default(14),
+  qqeSmoothing: z.number().int().min(1).max(50).default(5),
+  qqeFactor: z.number().min(0.5).max(10).default(4.236),
+  /** Same-colour closed candles in a row for the momentum entry */
+  momentumCandles: z.number().int().min(2).max(10).default(3),
+  /** Wick share of the candle range that counts as a rejection at a level */
+  rejectionWickRatio: z.number().min(0.1).max(0.9).default(0.4),
   /** UTC hours with no signals (daily rollover: wide spreads, thin quotes) */
   blockedHoursUtc: z.array(z.number().int().min(0).max(23)).max(24).default([21, 22, 23]),
 });
