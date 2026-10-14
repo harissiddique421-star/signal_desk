@@ -22,3 +22,53 @@ describe("experimental FAST mode", () => {
     expect(fast.maxStalenessSeconds).toBe(DEFAULT_RULES.maxStalenessSeconds);
   });
 });
+
+import { evaluateSignal } from "@/lib/engine/signal";
+import { generateSampleCandles } from "@/lib/providers/sample";
+import type { Candle } from "@/lib/types";
+
+describe("FAST mode on a slow or patchy feed", () => {
+  const cfg = RuleConfigSchema.parse({ ...DEFAULT_RULES, ...MODE_OVERRIDES.FAST });
+  // Wednesday 09:30:04 UTC — 4 s after a candle closed, inside the 15 s entry window
+  const now = Date.UTC(2026, 9, 14, 9, 30, 4);
+  const justClosed = Date.UTC(2026, 9, 14, 9, 29, 0);
+  const run = (candles: Candle[], config = cfg) =>
+    evaluateSignal({
+      candles,
+      symbol: "EUR/USD",
+      marketType: "LIVE",
+      symbolSupported: true,
+      source: { id: "test", name: "Test feed", verified: true, supportedMarketTypes: ["LIVE"] },
+      analysisKind: "LIVE_FEED",
+      now,
+      config,
+    });
+  const full = generateSampleCandles("EUR/USD", now, 400);
+
+  it("signals when the feed is one candle late and anchors the trade to the current minute", () => {
+    const lagged = full.filter((c) => c.time < justClosed);
+    const r = run(lagged);
+    expect(r.decision).not.toBe("NO_TRADE");
+    expect(r.checks.find((c) => c.id === "data.freshness")?.passed).toBe(true);
+    expect(r.signalCandleTime).toBe(justClosed);
+    expect(r.entryWindowStart).toBe(justClosed + 60_000);
+  });
+
+  it("still refuses a feed that is two or more candles behind", () => {
+    const stale = full.filter((c) => c.time < justClosed - 60_000);
+    expect(run(stale).decision).toBe("NO_TRADE");
+  });
+
+  it("tolerates several quiet missing minutes", () => {
+    const gappy = full.filter((_, i) => ![full.length - 5, full.length - 12, full.length - 20, full.length - 33].includes(i));
+    const r = run(gappy);
+    expect(r.checks.find((c) => c.id === "data.gaps")?.passed).toBe(true);
+    expect(r.decision).not.toBe("NO_TRADE");
+  });
+
+  it("does not relax freshness for the other modes", () => {
+    const lagged = full.filter((c) => c.time < justClosed);
+    const normal = RuleConfigSchema.parse({ ...DEFAULT_RULES, ...MODE_OVERRIDES.NORMAL });
+    expect(run(lagged, normal).checks.find((c) => c.id === "data.freshness")?.passed).toBe(false);
+  });
+});

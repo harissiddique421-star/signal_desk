@@ -139,7 +139,23 @@ export function evaluateSignal(input: EngineInput): SignalResult {
       : `None in last ${cfg.gapLookback}`,
   );
   const fresh = checkFreshness(closed, tfMs, input.now, cfg.maxStalenessSeconds);
-  addCheck("data.freshness", "Freshness", fresh.fresh, fresh.detail);
+  // FAST only: the free Twelve Data feed often publishes the just-closed candle 10–20 s
+  // late, so every scan inside the entry window failed freshness and FAST never fired.
+  // If the feed is exactly ONE candle behind, FAST uses the previous closed candle and
+  // anchors the trade to the current minute. A feed further behind still fails closed.
+  const fastLagged =
+    fastMode &&
+    !fresh.fresh &&
+    closed.length > 0 &&
+    closed[closed.length - 1].time === fresh.expectedLastOpen - tfMs &&
+    closed[closed.length - 1].time <= input.now;
+  addCheck(
+    "data.freshness",
+    "Freshness",
+    fresh.fresh || fastLagged,
+    fastLagged ? `Feed is one candle behind; FAST uses the previous closed candle (${fresh.detail})` : fresh.detail,
+  );
+  if (fastLagged) warnings.push("FAST: latest candle not published yet by the feed — direction taken from the previous closed candle.");
   if (input.marketType === "LIVE" && input.analysisKind === "LIVE_FEED") {
     // Feeds that keep printing candles over the weekend must not produce signals:
     // the regular FX market is closed and the rules were never tested on those minutes.
@@ -153,9 +169,13 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   }
 
   const lastC = closed[closed.length - 1];
-  base.signalCandleTime = lastC.time;
+  // When FAST runs one candle behind, the trade is still the CURRENT minute's candle,
+  // so the signal is anchored to the candle that just closed (even though the feed has
+  // not delivered it yet). Results are then resolved on the right trade candle.
+  const anchorTime = fastLagged ? fresh.expectedLastOpen : lastC.time;
+  base.signalCandleTime = anchorTime;
   base.entryReference = lastC.close;
-  base.entryWindowStart = lastC.time + tfMs;
+  base.entryWindowStart = anchorTime + tfMs;
   base.entryWindowEnd = base.entryWindowStart + cfg.entryWindowSeconds * 1000;
   const windowOpen = input.now <= base.entryWindowEnd;
 
