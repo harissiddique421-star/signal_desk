@@ -108,6 +108,9 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e instanceof Error ? e.message : String(e));
+  const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  console.error(msg);
+  // Shown as an annotation on the GitHub Actions run (logs are not always reachable).
+  if (process.env.GITHUB_ACTIONS) console.log(`::error::${msg.replace(/\r?\n/g, " ").slice(0, 900)}`);
   process.exit(1);
 });
