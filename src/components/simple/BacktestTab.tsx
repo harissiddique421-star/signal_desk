@@ -4,7 +4,7 @@ import { useState } from "react";
 import { MODE_LABEL, type SignalMode } from "@/lib/config/presets";
 import type { BacktestResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
-import { fmtPct, fmtTime } from "@/lib/client/format";
+import { fmtDateTime, fmtPct, fmtTime } from "@/lib/client/format";
 import { EquityLine } from "../Performance";
 import { HistoryPanel } from "./HistoryPanel";
 import { RecentPanel } from "./RecentPanel";
@@ -77,7 +77,7 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
         <div className="space-y-4">
           {data.synthetic && <p className="rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">Yeh sample (nakli) data hai — asli market ka nateeja nahin.</p>}
           <p className="text-sm text-muted">
-            {fmtTime(data.result.firstCandle)} se {fmtTime(data.result.lastCandle)} tak, {data.result.candlesUsed} candles.
+            {fmtDateTime(data.result.firstCandle)} se {fmtDateTime(data.result.lastCandle)} tak, {data.result.candlesUsed} candles.
           </p>
           <div className="glass grid grid-cols-3 gap-2 p-4 text-center">
             <div>
