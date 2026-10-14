@@ -382,7 +382,7 @@ export function SignalApp() {
 
           {settings.mode === "FAST" && (
             <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn" data-testid="fast-demo">
-              <b>⚡ Fast Confluence — EXPERIMENTAL:</b> zyada setups ke liye kuch filters loose hain. Is mode ki accuracy prove nahin hui; sirf demo account par test karein. Har signal guaranteed nahin.
+              <b>⚡ Fast Candle Patterns — EXPERIMENTAL:</b> signal sirf tab aata hai jab candle pattern (engulfing, hammer, shooting star, morning/evening star, tweezer waghera) sahi jagah bane — support/resistance, Bollinger band, RSI hadd par, ya trend ke saath. Accuracy abhi saabit nahin; sirf demo account par.
             </p>
           )}
           {settings.mode === "V4" && (
@@ -472,7 +472,7 @@ export function SignalApp() {
             </button>
             <p className="mt-2 text-center text-xs text-faint">
               {settings.mode === "FAST"
-                ? "⚡ Fast: har minute ke 45ve second par agli candle ka UP/DOWN deta hai. Yeh trend ki taraf ka andaza hai, pakki prediction nahin."
+                ? "⚡ Fast: har minute candle khatam hone se pehle pattern check karta hai. Sahi jagah pattern bane to agli candle ka UP/DOWN deta hai, warna WAIT."
                 : "Sirf tab BUY/SELL deta hai jab poora setup mojood ho. Zabardasti direction ab nahin di jaati — asli data par wo ~49% sahi thi."}
             </p>
           </section>

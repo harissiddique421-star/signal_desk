@@ -28,6 +28,8 @@ export const CHECK_TEXT: Record<string, string> = {
   "fade.range": "Aakhri candle itni bari nahin ke wapsi ka chance ho.",
   "fade.body": "Aakhri candle ki body kamzor hai (zyada wick).",
   "fade.rsi": "RSI hadd tak nahin pohncha.",
+  "pattern.found": "Is candle par koi saaf pattern nahin bana.",
+  "pattern.setup": "Pattern bana, lekin sahi jagah nahin (support/resistance, band ya trend ke saath nahin).",
   "session.hours": "Is waqt (rollover) data patla hota hai — signal band.",
   "health.degraded": "Haal ke nataij break-even se saaf neeche hain — signals ruke hue hain.",
 };
