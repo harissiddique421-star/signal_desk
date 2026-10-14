@@ -28,6 +28,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # The key was saved as an environment secret in an environment named
+    # TWELVEDATA_API_KEY; using that environment makes its secrets available.
+    # A repository-level secret of the same name also works.
+    environment: TWELVEDATA_API_KEY
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +49,7 @@ jobs:
           echo "Repository secret TWELVEDATA_API_KEY set: ${{ secrets.TWELVEDATA_API_KEY != '' }}"
           echo "Repository variable TWELVEDATA_API_KEY set: ${{ vars.TWELVEDATA_API_KEY != '' }}"
           if [ "${{ secrets.TWELVEDATA_API_KEY != '' || vars.TWELVEDATA_API_KEY != '' }}" != "true" ]; then
-            echo "::error::TWELVEDATA_API_KEY not found. Add it under Settings → Secrets and variables → Actions → Secrets (Repository secrets, not Environment secrets)."
+            echo "::error::TWELVEDATA_API_KEY not found. Add it under Settings → Secrets and variables → Actions → Secrets (a Repository secret, or an Environment secret in the environment named TWELVEDATA_API_KEY)."
             exit 2
           fi
           if [ "${{ secrets.TWELVEDATA_API_KEY != '' }}" != "true" ]; then
