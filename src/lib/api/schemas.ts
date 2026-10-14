@@ -11,7 +11,7 @@ export const SymbolsQuerySchema = z.object({
   marketType: MarketTypeSchema,
 });
 
-export const SignalModeSchema = z.enum(["V2", "STRICT", "NORMAL"]);
+export const SignalModeSchema = z.enum(["V4", "V2", "STRICT", "NORMAL"]);
 
 export const AnalyzeRequestSchema = z.strictObject({
   provider: ProviderIdSchema,

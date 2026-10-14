@@ -62,13 +62,17 @@ describe("today's tally (regression: forced Generate answers inflated/deflated t
 });
 
 describe("settings migration", () => {
-  it("moves users saved before v2 (old default NORMAL) to V2 once", () => {
-    expect(migrateSettings({ mode: "NORMAL", sound: false, payoutPercent: 80, symbol: "GBP/USD" })).toMatchObject({ mode: "V2", sound: false, payoutPercent: 80, symbol: "GBP/USD" });
+  it("moves users saved before v3 to the v4 demo once (v2 lost on 2026 data)", () => {
+    expect(migrateSettings({ mode: "NORMAL", sound: false, payoutPercent: 80, symbol: "GBP/USD" })).toMatchObject({ mode: "V4", sound: false, payoutPercent: 80, symbol: "GBP/USD", dailyLossLimit: 3 });
+    expect(migrateSettings({ mode: "V2", settingsVersion: 2 }).mode).toBe("V4");
   });
   it("keeps a mode chosen after the migration", () => {
-    expect(migrateSettings({ mode: "STRICT", settingsVersion: 2 }).mode).toBe("STRICT");
+    expect(migrateSettings({ mode: "STRICT", settingsVersion: 3 }).mode).toBe("STRICT");
+    expect(migrateSettings({ mode: "V2", settingsVersion: 3 }).mode).toBe("V2");
   });
-  it("rejects unknown modes", () => {
-    expect(migrateSettings({ mode: "TURBO", settingsVersion: 2 }).mode).toBe("V2");
+  it("rejects unknown modes and bad loss limits", () => {
+    expect(migrateSettings({ mode: "TURBO", settingsVersion: 3 }).mode).toBe("V4");
+    expect(migrateSettings({ dailyLossLimit: -2, settingsVersion: 3 }).dailyLossLimit).toBe(3);
+    expect(migrateSettings({ dailyLossLimit: 0, settingsVersion: 3 }).dailyLossLimit).toBe(0);
   });
 });

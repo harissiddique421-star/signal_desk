@@ -1,5 +1,6 @@
 import type { SignalMode } from "../config/presets";
 import { SIGNAL_MODES } from "../config/presets";
+import { wilson } from "../stats/performance";
 import type { Outcome } from "../stats/performance";
 import type { MarketType } from "../types";
 
@@ -29,6 +30,17 @@ export interface TrackedSignal {
   outcome?: Exclude<Outcome, "UNRESOLVED">;
   entry?: number;
   exit?: number;
+  /**
+   * What the user's Quotex (demo) trade actually paid, entered by hand. The feed-based
+   * `outcome` is only an estimate — Twelve Data's 1-minute candles are not a continuous
+   * price series (docs/RESEARCH.md §11) — so when this is set it wins everywhere.
+   */
+  quotexOutcome?: "WIN" | "LOSS" | "TIE";
+}
+
+/** The outcome to count: the user's Quotex result when entered, else the feed estimate. */
+export function effectiveOutcome(t: TrackedSignal): TrackedSignal["outcome"] {
+  return t.quotexOutcome ?? t.outcome;
 }
 
 const KEY = "signal-desk:tracked:v1";
@@ -59,12 +71,16 @@ export interface SimpleSettings {
   sound: boolean;
   payoutPercent: number;
   symbol: string | null;
+  /** Stop showing signals for the rest of the day after this many LOSSES in the active mode (0 = off). */
+  dailyLossLimit: number;
+  /** Local date (YYYY-MM-DD) on which the user chose to keep going past the daily limit. */
+  ignoreDailyStopOn?: string | null;
 }
 
 const SKEY = "signal-desk:simple-settings:v1";
 /** Bumped when a default must override what users saved earlier. */
-const SETTINGS_VERSION = 2;
-export const DEFAULT_SIMPLE: SimpleSettings = { mode: "V2", sound: true, payoutPercent: 85, symbol: null };
+const SETTINGS_VERSION = 3; // 3: v2 lost on 2026 data → move everyone to the v4 demo once
+export const DEFAULT_SIMPLE: SimpleSettings = { mode: "V4", sound: true, payoutPercent: 85, symbol: null, dailyLossLimit: 3, ignoreDailyStopOn: null };
 
 /**
  * Merge saved settings with defaults. Settings saved before version 2 had NORMAL as
@@ -75,8 +91,17 @@ export function migrateSettings(saved: unknown): SimpleSettings {
   const s = saved && typeof saved === "object" ? (saved as Partial<SimpleSettings> & { settingsVersion?: number }) : {};
   const merged = { ...DEFAULT_SIMPLE, ...s };
   if ((s.settingsVersion ?? 1) < SETTINGS_VERSION || !SIGNAL_MODES.includes(merged.mode)) merged.mode = DEFAULT_SIMPLE.mode;
-  const { mode, sound, payoutPercent, symbol, ignoreHealth } = merged;
-  return { mode, sound: !!sound, payoutPercent: Number(payoutPercent) || DEFAULT_SIMPLE.payoutPercent, symbol: typeof symbol === "string" ? symbol : null, ignoreHealth: !!ignoreHealth };
+  const { mode, sound, payoutPercent, symbol, ignoreHealth, dailyLossLimit, ignoreDailyStopOn } = merged;
+  const limit = Number(dailyLossLimit);
+  return {
+    mode,
+    sound: !!sound,
+    payoutPercent: Number(payoutPercent) || DEFAULT_SIMPLE.payoutPercent,
+    symbol: typeof symbol === "string" ? symbol : null,
+    ignoreHealth: !!ignoreHealth,
+    dailyLossLimit: Number.isInteger(limit) && limit >= 0 && limit <= 50 ? limit : DEFAULT_SIMPLE.dailyLossLimit,
+    ignoreDailyStopOn: typeof ignoreDailyStopOn === "string" ? ignoreDailyStopOn : null,
+  };
 }
 
 export const simpleSettingsStore = {
@@ -112,18 +137,54 @@ export function isToday(ms: number, now = Date.now()) {
 export function todaysTally(list: TrackedSignal[], now: number, mode: SignalMode): { wins: number; losses: number; ties: number } {
   const today = list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode && isToday(t.createdAt, now));
   return {
-    wins: today.filter((t) => t.outcome === "WIN").length,
-    losses: today.filter((t) => t.outcome === "LOSS").length,
-    ties: today.filter((t) => t.outcome === "TIE").length,
+    wins: today.filter((t) => effectiveOutcome(t) === "WIN").length,
+    losses: today.filter((t) => effectiveOutcome(t) === "LOSS").length,
+    ties: today.filter((t) => effectiveOutcome(t) === "TIE").length,
   };
+}
+
+export function localDayKey(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Daily loss stop: once today's AUTO losses in the active mode reach the limit,
+ * no more signals are shown today (unless the user overrides it for today).
+ * It limits damage on a bad day; it does not make any signal more accurate.
+ */
+export function dailyStopActive(list: TrackedSignal[], now: number, settings: Pick<SimpleSettings, "mode" | "dailyLossLimit" | "ignoreDailyStopOn">): boolean {
+  if (!settings.dailyLossLimit) return false;
+  if (settings.ignoreDailyStopOn === localDayKey(now)) return false;
+  return todaysTally(list, now, settings.mode).losses >= settings.dailyLossLimit;
 }
 
 /** Resolved AUTO outcomes for one mode, oldest first — input to the degradation monitor. */
 export function autoOutcomes(list: TrackedSignal[], mode: SignalMode): Outcome[] {
   return list
-    .filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode && t.status === "RESOLVED" && t.outcome)
+    .filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === mode && (t.quotexOutcome || (t.status === "RESOLVED" && t.outcome)))
     .sort((a, b) => a.signalCandleTime - b.signalCandleTime)
-    .map((t) => t.outcome as Outcome);
+    .map((t) => effectiveOutcome(t) as Outcome);
+}
+
+export const V4_DEMO_TARGET = 300;
+
+/**
+ * Forward test of the v4 demo strategy, counted ONLY from results the user entered
+ * from their Quotex demo account (the feed estimate is not trusted for this).
+ */
+export function v4DemoProgress(list: TrackedSignal[], payout: number) {
+  const marked = list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === "V4" && t.quotexOutcome);
+  const signals = list.filter((t) => (t.kind ?? "AUTO") === "AUTO" && t.mode === "V4").length;
+  const wins = marked.filter((t) => t.quotexOutcome === "WIN").length;
+  const losses = marked.filter((t) => t.quotexOutcome === "LOSS").length;
+  const ties = marked.filter((t) => t.quotexOutcome === "TIE").length;
+  const n = wins + losses;
+  const breakEven = 1 / (1 + payout);
+  const ci = wilson(wins, n);
+  let verdict: "NOT_ENOUGH" | "EDGE" | "LOSING" | "UNPROVEN" = "NOT_ENOUGH";
+  if (n >= V4_DEMO_TARGET && ci) verdict = ci[0] > breakEven ? "EDGE" : ci[1] < breakEven ? "LOSING" : "UNPROVEN";
+  return { signals, marked: marked.length, wins, losses, ties, n, winRate: n ? wins / n : null, ci, breakEven, net: Math.round((wins * payout - losses) * 100) / 100, verdict };
 }
 
 /** Live-minute opportunities each version was evaluated on (data gates passed), for coverage. */

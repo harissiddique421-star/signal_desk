@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client/api";
 import { fmtPct, fmtPrice, fmtTime } from "@/lib/client/format";
-import { autoOutcomes, opportunityStore, versionComparison, type TrackedSignal } from "@/lib/client/signals-store";
+import { autoOutcomes, opportunityStore, V4_DEMO_TARGET, v4DemoProgress, versionComparison, type TrackedSignal } from "@/lib/client/signals-store";
 import { wilson } from "@/lib/stats/performance";
 import { MODE_LABEL, SIGNAL_MODES, type SignalMode } from "@/lib/config/presets";
 import { assessStrategyHealth } from "@/lib/stats/monitor";
@@ -101,6 +101,8 @@ export function ResultsTab(props: {
           </button>
         </div>
       </div>
+
+      <V4DemoCard tracked={tracked} payout={payout} />
 
       <p className="text-xs text-muted">Upar ke numbers: sirf {MODE_LABEL[mode]} ke auto signals.</p>
       <div className="glass grid grid-cols-3 gap-2 p-4 text-center">
@@ -211,13 +213,28 @@ export function ResultsTab(props: {
                 <p className="text-[11px] text-faint">
                   {t.marketType} · {t.provider} · {t.ruleVersion ?? t.mode} · signal {fmtTime(t.createdAt, true)}
                 </p>
+                {(t.kind ?? "AUTO") === "AUTO" && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[11px]" role="group" aria-label="Quotex par asli nateeja">
+                    <span className="text-muted">Quotex:</span>
+                    {(["WIN", "LOSS", "TIE"] as const).map((o) => (
+                      <button
+                        key={o}
+                        aria-pressed={t.quotexOutcome === o}
+                        onClick={() => setTracked((all) => all.map((x) => (x.id === t.id ? { ...x, quotexOutcome: x.quotexOutcome === o ? undefined : o } : x)))}
+                        className={`rounded-full border px-2 py-0.5 ${t.quotexOutcome === o ? (o === "WIN" ? "border-call/60 bg-call/15 text-call" : o === "LOSS" ? "border-put/60 bg-put/15 text-put" : "border-white/30 bg-white/10") : "border-white/10 text-muted"}`}
+                      >
+                        {o === "TIE" ? "Barabar" : o}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
                   t.outcome === "WIN" ? "bg-call/15 text-call" : t.outcome === "LOSS" ? "bg-put/15 text-put" : t.outcome === "TIE" ? "bg-white/10 text-ink" : "bg-white/5 text-muted"
                 }`}
               >
-                {t.outcome ?? (t.status === "UNAVAILABLE" ? "N/A" : "Pending")}
+                {t.outcome ? `${t.outcome}${t.quotexOutcome ? "" : " (feed)"}` : t.status === "UNAVAILABLE" ? "N/A" : "Pending"}
               </span>
             </li>
           ))}
@@ -234,6 +251,47 @@ export function ResultsTab(props: {
           History saaf karein
         </button>
       )}
+    </section>
+  );
+}
+
+/**
+ * Forward test of v4 on the user's Quotex DEMO account. Counts only results the user
+ * entered from Quotex; the feed's own WIN/LOSS is not trusted (docs/RESEARCH.md §11).
+ */
+function V4DemoCard({ tracked, payout }: { tracked: TrackedSignal[]; payout: number }) {
+  const p = v4DemoProgress(tracked, payout);
+  if (p.signals === 0) return null;
+  const pct = Math.min(100, Math.round((p.n / V4_DEMO_TARGET) * 100));
+  const text =
+    p.verdict === "EDGE"
+      ? "Demo par jeet break-even se pakke taur par upar rahi. Asli paisa sirf chhoti raqam aur rozana had ke saath — aur nataij dekhte rahein."
+      : p.verdict === "LOSING"
+        ? "Demo par v4 break-even se pakke taur par neeche hai. Ise band karein; asli paisa na lagayein."
+        : p.verdict === "UNPROVEN"
+          ? "300 trades ke baad bhi faida saabit nahin hua. Asli paisa na lagayein."
+          : `Abhi ${p.n}/${V4_DEMO_TARGET} demo trades. Itne se pehle koi faisla nahin — asli paisa na lagayein.`;
+  return (
+    <section className="glass-quiet p-4 text-sm" data-testid="v4-demo-progress">
+      <h3 className="font-semibold">v4 Demo forward test</h3>
+      <p className="mt-1 text-xs text-muted">
+        Har v4 signal par Quotex demo ka asli nateeja (WIN / LOSS) neeche dabayein. Sirf wahi gine jaate hain — app ka apna feed wala andaza nahin.
+      </p>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+        <div className="h-full bg-cyan" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-2">
+        {p.n}/{V4_DEMO_TARGET} trades · <span className="text-call">{p.wins} WIN</span> / <span className="text-put">{p.losses} LOSS</span>
+        {p.winRate !== null && (
+          <>
+            {" "}
+            · jeet {fmtPct(p.winRate, 1)}
+            {p.ci && p.n >= 30 ? ` (${fmtPct(p.ci[0], 0)}–${fmtPct(p.ci[1], 0)})` : ""} · zaroorat {fmtPct(p.breakEven, 1)}
+          </>
+        )}
+      </p>
+      {p.signals > p.marked && <p className="mt-1 text-xs text-warn">{p.signals - p.marked} v4 signals ka Quotex nateeja abhi darj nahin.</p>}
+      <p className={`mt-2 rounded-lg px-3 py-2 text-xs ${p.verdict === "EDGE" ? "bg-call/10 text-call" : p.verdict === "LOSING" ? "bg-put/10 text-put" : "bg-white/5 text-muted"}`}>{text}</p>
     </section>
   );
 }

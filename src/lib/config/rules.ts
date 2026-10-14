@@ -77,6 +77,11 @@ export const RuleConfigSchema = z.object({
   fadeMinBodyRatio: z.number().min(0).max(1).default(0.5),
   /** RSI at or above this (fading up) / at or below 100 minus this (fading down) */
   fadeRsiExtreme: z.number().min(50).max(100).default(70),
+  /**
+   * Compare the signal candle's range with the ATR that already includes that candle
+   * (true) or with the ATR before it (false, v2). v4 was searched with the former.
+   */
+  fadeRangeVsAtrIncludingSignal: z.boolean().default(false),
   /** UTC hours with no signals (daily rollover: wide spreads, thin quotes) */
   blockedHoursUtc: z.array(z.number().int().min(0).max(23)).max(24).default([21, 22, 23]),
 });

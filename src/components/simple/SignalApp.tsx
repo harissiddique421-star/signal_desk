@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { AnalyzeResponse, HealthResponse, SymbolsResponse } from "@/lib/api/contracts";
 import { api } from "@/lib/client/api";
 import { fmtPrice, fmtTime } from "@/lib/client/format";
-import { autoOutcomes, DEFAULT_SIMPLE, opportunityStore, simpleSettingsStore, todaysTally, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
+import { autoOutcomes, dailyStopActive, DEFAULT_SIMPLE, localDayKey, opportunityStore, simpleSettingsStore, todaysTally, trackedStore, type SimpleSettings, type TrackedSignal } from "@/lib/client/signals-store";
 import { MODE_LABEL, SIGNAL_MODES } from "@/lib/config/presets";
 import { assessStrategyHealth } from "@/lib/stats/monitor";
 import { agreementCount, CHECK_TEXT, evidenceChips, onlyTimingFailed, waitReason } from "@/lib/client/simple-text";
@@ -138,7 +138,10 @@ export function SignalApp() {
 
   // ---- degradation monitor: pause signals when recent results are clearly below break-even ----
   const stratHealth = useMemo(() => assessStrategyHealth(autoOutcomes(tracked, settings.mode), settings.payoutPercent / 100), [tracked, settings.mode, settings.payoutPercent]);
-  const paused = stratHealth.status === "DEGRADED" && !settings.ignoreHealth;
+  const healthPaused = stratHealth.status === "DEGRADED" && !settings.ignoreHealth;
+  // Daily loss stop (follows the clock state, so it also lifts after midnight).
+  const dailyStop = now > 0 && dailyStopActive(tracked, now, settings);
+  const paused = healthPaused || dailyStop;
   const pausedRef = useRef(paused);
   useEffect(() => {
     pausedRef.current = paused;
@@ -292,10 +295,11 @@ export function SignalApp() {
   } else if (!result) {
     subline = scanning ? "Market analyse ho rahi hai…" : error ? "Analysis nahin ho saka" : "Shuru ho raha hai…";
   } else if (tradable && paused) {
-    subline = "Signal mila, lekin strategy abhi ruki hui hai";
-    reason = CHECK_TEXT["health.degraded"];
+    subline = dailyStop ? "Signal mila, lekin aaj ki haar ki had poori ho chuki" : "Signal mila, lekin strategy abhi ruki hui hai";
+    reason = dailyStop ? "Aaj mazeed trade na lein. Kal phir dekhein." : CHECK_TEXT["health.degraded"];
   } else if (showSignal) {
-    subline = verdict === "BUY" ? "Quotex par UP (CALL) — 1 minute expiry" : "Quotex par DOWN (PUT) — 1 minute expiry";
+    const demo = settings.mode === "V4" ? "DEMO account par: " : "";
+    subline = demo + (verdict === "BUY" ? "Quotex par UP (CALL) — 1 minute expiry" : "Quotex par DOWN (PUT) — 1 minute expiry");
   } else if (expired) {
     subline = `${result.decision === "CALL" ? "BUY" : "SELL"} signal tha, lekin entry ka waqt nikal gaya`;
     reason = "Agli candle ka intezar karein.";
@@ -305,7 +309,7 @@ export function SignalApp() {
   }
 
   // The indicator-agreement bar describes the v1 trend rules; a v2 fade deliberately trades against them.
-  const agree = result && result.evidence.length && settings.mode !== "V2" ? agreementCount(result) : null;
+  const agree = result && result.evidence.length && (settings.mode === "STRICT" || settings.mode === "NORMAL") ? agreementCount(result) : null;
   const chips = showSignal && result ? evidenceChips(result.evidence, result.decision === "CALL" ? "BULLISH" : "BEARISH").slice(0, 6) : [];
 
   return (
@@ -368,6 +372,20 @@ export function SignalApp() {
             <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">
               Live data band hai — yeh sirf sample (nakli) data hai, is se signal nahin aayega.
               {liveOffReason && <span className="mt-1 block text-xs" data-testid="live-off-reason">{liveOffReason}</span>}
+            </p>
+          )}
+
+          {settings.mode === "V4" && (
+            <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn" data-testid="v4-demo">
+              <b>v4 DEMO:</b> yeh strategy abhi saabit nahin. Sirf Quotex ke <b>demo account</b> par lagayein. 300 demo trades ke baad Results mein faisla dikhega.
+            </p>
+          )}
+          {dailyStop && (
+            <p role="status" className="mt-3 rounded-lg bg-put/10 px-3 py-2 text-sm text-put" data-testid="daily-stop">
+              Aaj {settings.dailyLossLimit} LOSS ho chuke — haar ki had poori. Baqi din signal band rahenge.
+              <button className="ml-2 underline" onClick={() => setSettings({ ...settings, ignoreDailyStopOn: localDayKey(now) })}>
+                Aaj ke liye had hatayein
+              </button>
             </p>
           )}
 
@@ -466,7 +484,7 @@ export function SignalApp() {
             <div className="seg" role="group" aria-label="Signal mode">
               {SIGNAL_MODES.map((m) => (
                 <button key={m} className="whitespace-nowrap text-sm" aria-pressed={settings.mode === m} onClick={() => setSettings({ ...settings, mode: m, ignoreHealth: false })}>
-                  {m === "V2" ? "v2" : m === "STRICT" ? "v1 Strict" : "v1 Normal"}
+                  {m === "V4" ? "v4 Demo" : m === "V2" ? "v2" : m === "STRICT" ? "v1 S" : "v1 N"}
                 </button>
               ))}
             </div>
@@ -483,7 +501,7 @@ export function SignalApp() {
             </button>
           </div>
           <p className="mt-2 text-xs text-faint">
-            v2: naya, test shuda (bahut kam signal). v1 Strict/Normal: purane rules — 38 lakh asli candles par 48–49% jeet, yani ghaata. Sirf muqabla karne ke liye rakhe gaye hain.
+            v4 Demo: 2026 ki search ka behtareen tareeqa (test par 55.8%, lekin pakka saabit nahin) — sirf demo par aazmayein. v2: 2018–2020 mein chalta tha, 2026 ke saaf data par 47.7% — haar raha hai. v1 S/N: purane rules, 48–49% — ghaata. Purane versions sirf muqabla karne ke liye hain.
           </p>
 
           {analysis?.chart && (
@@ -522,6 +540,22 @@ export function SignalApp() {
               }}
             />
             <p className="mt-1 text-xs text-faint">Barabar rehne ke liye kam az kam {(100 / (1 + settings.payoutPercent / 100)).toFixed(1)}% jeet chahiye.</p>
+          </div>
+          <div>
+            <h2 className="font-semibold">Rozana haar ki had</h2>
+            <p className="text-sm text-muted">Itne LOSS ke baad us din signal band ho jayenge (0 = band nahin). Is se nuqsaan qabu mein rehta hai; jeet nahin barhti.</p>
+            <input
+              className="field mt-2 w-28"
+              type="number"
+              min={0}
+              max={50}
+              value={settings.dailyLossLimit}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isInteger(v) && v >= 0 && v <= 50) setSettings({ ...settings, dailyLossLimit: v });
+              }}
+              aria-label="Rozana haar ki had"
+            />
           </div>
           <FeedTiming />
           <div>

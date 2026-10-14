@@ -1,0 +1,26 @@
+# Checks that the app's engine (mode V4) reproduces the Python search result on the
+# same cached Dukascopy candles. Run from the Actions tab after the strategy search.
+name: v4 parity check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Restore candle cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data-search
+          key: dukascopy-search-2026-10-14-790
+          fail-on-cache-miss: true
+      - name: Compare TS engine with the Python search
+        run: npx tsx scripts/research/v4-parity.ts --data data-search --from 2026-04-01 --expect src/lib/research/strategy-search.json

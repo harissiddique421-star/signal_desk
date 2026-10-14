@@ -392,7 +392,7 @@ function decideFade(x: FadeContext): SignalResult {
   const stretchedUp = up && pb > 1 + cfg.fadePercentBOutside;
   const stretchedDown = down && pb < -cfg.fadePercentBOutside;
   const want: Direction = stretchedUp ? "BEARISH" : stretchedDown ? "BULLISH" : "NEUTRAL";
-  const rangeAtr = x.lastRange / x.atrPrev;
+  const rangeAtr = x.lastRange / (cfg.fadeRangeVsAtrIncludingSignal ? x.atrNow : x.atrPrev);
 
   addCheck(
     "fade.stretch",
