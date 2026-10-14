@@ -87,4 +87,12 @@ describe("Twelve Data adapter", () => {
     expect(h.status).toBe("DEGRADED");
     expect(h.detail).not.toMatch(/secrets/);
   });
+
+  it("says the API key was rejected on HTTP 401, without echoing the key", async () => {
+    const f = vi.fn(async () => new Response("{}", { status: 401 }));
+    const p = new TwelveDataProvider("test-key-123456", f as unknown as typeof fetch);
+    const err = await p.getCandles({ symbol: "EUR/USD", marketType: "LIVE", count: 10 }).catch((e: Error) => e);
+    expect(String(err)).toMatch(/API key rejected \(HTTP 401\)/);
+    expect(String(err)).not.toMatch(/test-key/);
+  });
 });

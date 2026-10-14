@@ -107,6 +107,7 @@ export class TwelveDataProvider implements MarketDataProvider {
       const latencyMs = Date.now() - started;
       this.lastLatency = latencyMs;
       if (res.status === 429) throw new ProviderError("Market data rate limit reached — try again shortly", 429);
+      if (res.status === 401 || res.status === 403) throw new ProviderError(`Market data API key rejected (HTTP ${res.status}) — check TWELVEDATA_API_KEY in Vercel, then redeploy`, 502);
       if (!res.ok) throw new ProviderError(`Market data provider HTTP ${res.status}`, 502);
       const json = await res.json();
       return { json, latencyMs };
