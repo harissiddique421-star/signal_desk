@@ -27,6 +27,13 @@ const dataDir = args.get("data") ?? "data-recent";
 const outPath = args.get("out") ?? "src/lib/research/recent.json";
 const payout = Number(args.get("payout") ?? 0.85);
 const historyPath = args.get("history") ?? "src/lib/research/history.json";
+const sourceId = args.get("source") ?? "twelvedata";
+const SOURCES: Record<string, { name: string; label: string; liveFeed: boolean }> = {
+  twelvedata: { name: "Twelve Data", label: "Twelve Data 1-minute candles (the feed the live app uses)", liveFeed: true },
+  dukascopy: { name: "Dukascopy", label: "Dukascopy 1-minute mid candles (tick-built, history only)", liveFeed: false },
+};
+const SRC = SOURCES[sourceId];
+if (!SRC) throw new Error(`unknown --source ${sourceId}`);
 const TF = 60_000;
 
 const SESSIONS: [number, number, string][] = [
@@ -219,7 +226,7 @@ function main() {
       candles,
       symbol: pair,
       marketType: "LIVE",
-      source: { id: "twelvedata", name: "Twelve Data", verified: true, supportedMarketTypes: ["LIVE"] },
+      source: { id: sourceId, name: SRC.name, verified: true, supportedMarketTypes: ["LIVE"] },
       payout,
       inSampleFraction: 1,
       config: v2Cfg,
@@ -254,7 +261,9 @@ function main() {
   const v3 = stat(v3All);
   const result = {
     generatedAt: new Date().toISOString(),
-    source: "Twelve Data 1-minute candles (the feed the live app uses)",
+    sourceId,
+    source: SRC.label,
+    liveFeed: SRC.liveFeed,
     period: Number.isFinite(first) ? { from: new Date(first).toISOString(), to: new Date(last).toISOString() } : null,
     payout,
     breakEven: r4(be),

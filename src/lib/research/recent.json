@@ -478,5 +478,7 @@
     "maxDrawdown": 7.05
    }
   }
- }
+ },
+ "sourceId": "twelvedata",
+ "liveFeed": true
 }

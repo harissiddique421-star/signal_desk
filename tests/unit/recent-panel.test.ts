@@ -1,19 +1,15 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
 const stat = (n: number, winRate: number, ci95: [number, number]) => ({ n, signals: n, winRate, ci95, net: 0, maxLosingStreak: 3 });
 
 async function render(json: unknown) {
-  vi.resetModules();
-  vi.doMock("@/lib/research/recent.json", () => ({ default: json }));
   const { RecentPanel } = await import("@/components/simple/RecentPanel");
-  return text(renderToStaticMarkup(createElement(RecentPanel)));
+  return text(renderToStaticMarkup(createElement(RecentPanel, { json, title: "Test panel", emptyHint: "Abhi tak nahin chala (TWELVEDATA_API_KEY)" })));
 }
-
-afterEach(() => vi.doUnmock("@/lib/research/recent.json"));
 
 describe("RecentPanel", () => {
   it("explains how to run the test before it has run", async () => {
@@ -48,5 +44,20 @@ describe("RecentPanel", () => {
     expect(out).toContain("51.2%");
     expect(out).toContain("v3 ML (shadow)");
     expect(out).toContain("ittefaq ho sakta hai");
+    expect(out).not.toContain("lagatar price nahin");
+  });
+
+  it("warns when the feed's candles are not a continuous price series", async () => {
+    const out = await render({
+      generatedAt: "2026-10-14T05:00:00Z",
+      period: { from: "2026-08-15T00:00:00Z", to: "2026-10-14T00:00:00Z" },
+      payout: 0.85,
+      breakEven: 0.5405,
+      opportunities: 1000,
+      data: { "EUR/USD": { feed: { continuousOpenShare: 0.04, medianGapToRange: 0.3 } } },
+      v2: { onTime: stat(300, 0.13, [0.1, 0.17]), late: stat(300, 0.5, [0.44, 0.56]), verdict: { code: "LOSING", text: "Haar." }, vsHistoricalTest: null, byPair: {} },
+      v3: null,
+    });
+    expect(out).toContain("lagatar price nahin");
   });
 });

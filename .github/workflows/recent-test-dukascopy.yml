@@ -1,0 +1,75 @@
+# Re-checks the shipped v2 rules (and the v3 shadow model) on recent Dukascopy
+# 1-minute mid candles — tick-built data like the OANDA history v2 was designed
+# on — and commits src/lib/research/recent-dukascopy.json for the Backtest tab.
+# No API key needed. Run it from the Actions tab or let it run every Saturday.
+name: Recent data test (Dukascopy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days of history to test"
+        default: "60"
+        required: true
+  schedule:
+    - cron: "41 3 * * 6" # Saturday 03:41 UTC
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recent-test-dukascopy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Download recent 1-minute candles (bid + ask → mid)
+        run: npx tsx scripts/research/fetch-dukascopy.ts --out data-dukascopy --days "${{ github.event.inputs.days || '60' }}"
+
+      - name: Run v2 and v3 on them
+        run: npx tsx scripts/research/recent-test.ts --data data-dukascopy --source dukascopy --out src/lib/research/recent-dukascopy.json
+
+      - name: Summary
+        run: |
+          node -e '
+            const r = require("./src/lib/research/recent-dukascopy.json");
+            const f = (s) => s.winRate === null ? "—" : `${(s.winRate*100).toFixed(1)}% (${(s.ci95[0]*100).toFixed(1)}–${(s.ci95[1]*100).toFixed(1)}%), n=${s.n}`;
+            console.log([
+              `## Recent data test (Dukascopy)`,
+              `Period: ${r.period?.from} → ${r.period?.to} · break-even ${(r.breakEven*100).toFixed(2)}%`,
+              ``,
+              `| Version | On time | One candle late | Verdict |`,
+              `|---|---|---|---|`,
+              `| v2 Fade | ${f(r.v2.onTime)} | ${f(r.v2.late)} | ${r.v2.verdict.code} |`,
+              `| v3 ML (shadow) | ${f(r.v3.onTime)} | ${f(r.v3.late)} | ${r.v3.verdict.code} |`,
+            ].join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recent-test-dukascopy
+          path: |
+            src/lib/research/recent-dukascopy.json
+            data-dukascopy/fetch-meta.json
+
+      - name: Commit the result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/research/recent-dukascopy.json
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          git commit -m "Recent data test (Dukascopy): update recent-dukascopy.json"
+          for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0; sleep 5; done
+          exit 1

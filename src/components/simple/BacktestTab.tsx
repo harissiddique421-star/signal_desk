@@ -8,6 +8,8 @@ import { fmtPct, fmtTime } from "@/lib/client/format";
 import { EquityLine } from "../Performance";
 import { HistoryPanel } from "./HistoryPanel";
 import { RecentPanel } from "./RecentPanel";
+import recentTwelve from "@/lib/research/recent.json";
+import recentDukascopy from "@/lib/research/recent-dukascopy.json";
 
 const PERIODS = [
   { label: "6 ghante", count: 360 },
@@ -46,7 +48,16 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
         </p>
       </div>
 
-      <RecentPanel />
+      <RecentPanel
+        json={recentDukascopy}
+        title="Naye data par test — Dukascopy (saaf tick data)"
+        emptyHint='Abhi tak nahin chala. GitHub Actions mein "Recent data test (Dukascopy)" chalayein; koi key nahin chahiye.'
+      />
+      <RecentPanel
+        json={recentTwelve}
+        title="Naye data par test — Twelve Data (app ka live feed)"
+        emptyHint='Abhi tak nahin chala. GitHub Actions mein "Recent data test" chalayein (TWELVEDATA_API_KEY secret chahiye).'
+      />
 
       <HistoryPanel />
 

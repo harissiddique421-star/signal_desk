@@ -1,6 +1,5 @@
 "use client";
 
-import recentJson from "@/lib/research/recent.json";
 import { fmtDateTime } from "@/lib/client/format";
 
 interface Stat {
@@ -16,7 +15,9 @@ interface Verdict {
   text: string;
 }
 interface Recent {
-  data?: Record<string, { feed?: { continuousOpenShare: number | null } }>;
+  data?: Record<string, { feed?: { continuousOpenShare: number | null; medianGapToRange?: number | null } }>;
+  sourceId?: string;
+  liveFeed?: boolean;
   generatedAt: string | null;
   period: { from: string; to: string } | null;
   payout: number;
@@ -26,7 +27,6 @@ interface Recent {
   v3: { onTime: Stat; late: Stat; verdict: Verdict; vsV2: { diff: number; pValue: number } | null } | null;
 }
 
-const recent = recentJson as unknown as Recent;
 const pct = (x: number | null | undefined, d = 1) => (x === null || x === undefined ? "—" : `${(x * 100).toFixed(d)}%`);
 const tone: Record<Verdict["code"], string> = {
   EDGE: "bg-call/10 text-call",
@@ -40,26 +40,25 @@ const tone: Record<Verdict["code"], string> = {
  * (scripts/research/recent-test.ts, run by the "Recent data test" GitHub Action).
  * Answers: does the 2018–2020 edge still exist on today's market?
  */
-export function RecentPanel() {
-  const r = recent;
+export function RecentPanel({ json, title, emptyHint }: { json: unknown; title: string; emptyHint: string }) {
+  const r = json as Recent;
   if (!r.v2 || !r.period) {
     return (
       <section className="glass-quiet p-4 text-sm" data-testid="recent-panel">
-        <h3 className="font-semibold">Naye data par test</h3>
-        <p className="mt-1 text-xs text-muted">
-          Abhi tak nahin chala. GitHub par repo ke Actions tab mein &quot;Recent data test&quot; chalayein (pehle TWELVEDATA_API_KEY secret add karein). Nateeja yahan khud aa jayega.
-        </p>
+        <h3 className="font-semibold">{title}</h3>
+        <p className="mt-1 text-xs text-muted">{emptyHint}</p>
       </section>
     );
   }
   const v2 = r.v2;
   const v3 = r.v3;
-  // Share of minutes where the next candle opens at the previous close. A tick-built
-  // feed is ~1; far below means the feed's candles are not a continuous price series.
-  const cont = Object.values(r.data ?? {})
-    .map((d) => d.feed?.continuousOpenShare)
+  // Median jump between a candle's close and the next candle's open, as a share of the
+  // candle's range. Tick-built candles open within a tick or two of the previous close;
+  // Twelve Data measured ~0.3, i.e. its consecutive candles are not a continuous price series.
+  const gaps = Object.values(r.data ?? {})
+    .map((d) => d.feed?.medianGapToRange)
     .filter((x): x is number => typeof x === "number");
-  const feedSuspect = cont.length > 0 && cont.reduce((a, b) => a + b, 0) / cont.length < 0.5;
+  const feedSuspect = gaps.length > 0 && gaps.reduce((a, b) => a + b, 0) / gaps.length > 0.15;
   const row = (label: string, s: Stat, late: Stat) => (
     <tr className="border-t border-white/5 align-top">
       <td className="py-1.5 pr-2">{label}</td>
@@ -73,7 +72,7 @@ export function RecentPanel() {
   );
   return (
     <section className="glass-quiet p-4 text-sm" data-testid="recent-panel">
-      <h3 className="font-semibold">Naye data par test</h3>
+      <h3 className="font-semibold">{title}</h3>
       <p className="mt-1 text-xs text-muted">
         {fmtDateTime(r.period.from)} se {fmtDateTime(r.period.to)} tak · Twelve Data (wohi feed jo app live use karti hai) · {r.opportunities.toLocaleString()} moqay · barabar ke liye {pct(r.breakEven)} chahiye.
       </p>

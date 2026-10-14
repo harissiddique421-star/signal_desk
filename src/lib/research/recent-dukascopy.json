@@ -1,0 +1,14 @@
+{
+ "generatedAt": null,
+ "sourceId": "dukascopy",
+ "source": "Dukascopy 1-minute mid candles (tick-built, history only)",
+ "liveFeed": false,
+ "period": null,
+ "payout": 0.85,
+ "breakEven": 0.5405,
+ "opportunities": 0,
+ "minTradesForVerdict": 200,
+ "data": {},
+ "v2": null,
+ "v3": null
+}
