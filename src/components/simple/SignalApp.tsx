@@ -16,8 +16,9 @@ import type { ProviderSymbol } from "@/lib/types";
 import { CandleChart } from "../CandleChart";
 import { ResultsTab } from "./ResultsTab";
 import { BacktestTab } from "./BacktestTab";
+import { ScreenTab } from "./ScreenTab";
 
-type Tab = "signal" | "results" | "backtest" | "more";
+type Tab = "signal" | "screen" | "results" | "backtest" | "more";
 
 
 export function SignalApp() {
@@ -382,7 +383,7 @@ export function SignalApp() {
 
           {settings.mode === "FAST" && (
             <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn" data-testid="fast-demo">
-              <b>⚡ Fast Candle Patterns — EXPERIMENTAL:</b> signal sirf tab aata hai jab candle pattern (engulfing, hammer, shooting star, morning/evening star, tweezer waghera) sahi jagah bane — support/resistance, Bollinger band, RSI hadd par, ya trend ke saath. Accuracy abhi saabit nahin; sirf demo account par.
+              <b>⚡ Fast — EXPERIMENTAL:</b> har minute agli candle ka UP/DOWN deta hai (indicators ka vote). Yeh pakki prediction nahin; sirf demo account par test karein.
             </p>
           )}
           {settings.mode === "V4" && (
@@ -472,7 +473,7 @@ export function SignalApp() {
             </button>
             <p className="mt-2 text-center text-xs text-faint">
               {settings.mode === "FAST"
-                ? "⚡ Fast: har minute candle khatam hone se pehle pattern check karta hai. Sahi jagah pattern bane to agli candle ka UP/DOWN deta hai, warna WAIT."
+                ? "⚡ Fast: har minute ke 45ve second par agli candle ka UP/DOWN deta hai. Yeh trend ki taraf ka andaza hai, pakki prediction nahin."
                 : "Sirf tab BUY/SELL deta hai jab poora setup mojood ho. Zabardasti direction ab nahin di jaati — asli data par wo ~49% sahi thi."}
             </p>
           </section>
@@ -536,6 +537,7 @@ export function SignalApp() {
         </>
       )}
 
+      {tab === "screen" && <ScreenTab sound={settings.sound} />}
       {tab === "results" && (
         <ResultsTab tracked={tracked} setTracked={setTracked} payout={settings.payoutPercent / 100} now={serverNow} live={live} mode={settings.mode} />
       )}
@@ -599,10 +601,11 @@ export function SignalApp() {
 
       {/* Bottom tab bar */}
       <nav aria-label="Sections" className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-abyss/90 backdrop-blur" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="mx-auto grid max-w-xl grid-cols-4">
+        <div className="mx-auto grid max-w-xl grid-cols-5">
           {(
             [
               ["signal", "Signal"],
+              ["screen", "Screen"],
               ["results", "Results"],
               ["backtest", "Backtest"],
               ["more", "More"],

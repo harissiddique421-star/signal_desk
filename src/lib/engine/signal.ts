@@ -3,7 +3,7 @@ import { DEFAULT_RULES } from "../config/rules";
 import { atr, bollinger, ema, macd, percentileRank, rsi } from "../indicators";
 import type { AnalysisKind, Candle, Check, Decision, Direction, Evidence, MarketType, SignalMetrics, SignalResult } from "../types";
 import { checkFreshness, closedCandlesOnly, inspectSeries } from "../validation/candles";
-import { anatomy, CONTINUATION_PATTERNS, detectPatterns, PATTERN_UR, REVERSAL_PATTERNS, type PatternHit } from "../analysis/candles";
+import { anatomy, detectPatterns } from "../analysis/candles";
 import { buildZones, detectBreakouts, findSwings, marketStructure, nearestZones, resample } from "../analysis/structure";
 import { isFxWeekendClosed } from "../analysis/market-hours";
 
@@ -45,7 +45,7 @@ const UR = {
  */
 export function evaluateSignal(input: EngineInput): SignalResult {
   const cfg = input.config ?? DEFAULT_RULES;
-  const fastMode = cfg.version.startsWith("rules-fast");
+  const fastMode = cfg.version === "rules-fast-confluence-experimental";
   const tfMs = cfg.timeframeSeconds * 1000;
   const checks: Check[] = [];
   const reasons: string[] = [];
@@ -283,7 +283,7 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   if (pb > 1 || pb < 0) warnings.push(`Close outside Bollinger Bands (%B ${pb.toFixed(2)}) — stretched move`);
 
   const an = anatomy(lastC);
-  const patterns = detectPatterns(closed.slice(-3), { extended: fastMode });
+  const patterns = detectPatterns(closed.slice(-3));
   for (const p of patterns) {
     push({ id: `pattern.${p.name}`, module: "Candlestick pattern", label: p.name.replaceAll("_", " "), direction: p.direction, weight: p.direction === "NEUTRAL" ? 0.5 : 1.5, detail: `body ${(an.bodyRatio * 100).toFixed(0)}% of range, upper wick ${(an.upperWickRatio * 100).toFixed(0)}%, lower wick ${(an.lowerWickRatio * 100).toFixed(0)}%` });
   }
@@ -325,11 +325,46 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   if (fadeMode) {
     return decideFade({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen });
   }
+  const weightedWant: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
+  // In FAST mode, always produce a directional candidate from valid, fresh candles.
+  // If indicator weights tie, use the last CLOSED candle direction; a doji falls back
+  // to the latest non-doji candle. This is a forced demo candidate, not a validated edge.
+  const lastDirectionalCandle = [...closed].reverse().find((c) => c.close !== c.open);
+  const fastFallback: Direction = lastDirectionalCandle
+    ? (lastDirectionalCandle.close > lastDirectionalCandle.open ? "BULLISH" : "BEARISH")
+    : "NEUTRAL";
+  const want: Direction = fastMode && weightedWant === "NEUTRAL" ? fastFallback : weightedWant;
+  const supporting = want === "NEUTRAL" ? 0 : evidence.filter((e) => e.direction === want).length;
+
+  // FAST is an explicitly permissive, user-directed experimental vote mode.
+  // Keep source, symbol, candle integrity/freshness, market-hours and entry-window
+  // gates above/below, but do not silently apply the stricter trend/structure/RSI/level filters.
   if (fastMode) {
-    return decidePattern({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen, patterns, close, lowerBand: bb.lower[i], upperBand: bb.upper[i] });
+    addCheck("decision.fastDirection", "Forced FAST direction", want !== "NEUTRAL", want === "NEUTRAL" ? "No directional candle available" : weightedWant === "NEUTRAL" ? `${want} selected from latest non-doji closed candle because evidence was tied` : `${want} has the stronger weighted evidence`);
+    addCheck("decision.fastVotes", "Matching strategy votes", true, `${supporting} evidence items match ${want}; FAST force-signal mode does not require a vote minimum`);
+    warnings.push("FORCED FAST DEMO CANDIDATE: a CALL/PUT is shown from the available candle direction even without confluence. This is not a validated trading signal; verify manually and test in demo only.");
+    const metrics: SignalMetrics = {
+      atrPercentile: round(atrPct, 1),
+      lastRangeAtr: round(lastRange / atrPrev, 3),
+      bodyRatio: round(an.bodyRatio, 3),
+      lastCandleDir: lastC.close > lastC.open ? 1 : lastC.close < lastC.open ? -1 : 0,
+      rsi: round(rv, 2),
+      macdHistogram: h,
+      bbPercentB: round(pb, 3),
+      emaTrend: emaDir,
+      structure: ms.state,
+      mtfTrend: mtfDir,
+      opposingLevelAtr: null,
+      regime: atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : emaDir !== "NEUTRAL" && emaDir === msDir ? "TREND" : ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
+    };
+    base.metrics = metrics;
+    addCheck("timing.window", "Entry window", windowOpen, windowOpen ? `Act before ${new Date(base.entryWindowEnd).toISOString()}` : "Entry window already passed — signal expired");
+    const passedFast = reasons.length === 0;
+    base.engineDecision = sourceIndependentDecision(checks, want);
+    if (passedFast) base.decision = want === "BULLISH" ? "CALL" : want === "BEARISH" ? "PUT" : "NO_TRADE";
+    warnings.push("FAST mode is permissive and experimental; 2 matching evidence items are not 2 independently validated strategies.");
+    return finalize(base, input, warnings);
   }
-  const want: Direction = agreement > 0 ? "BULLISH" : agreement < 0 ? "BEARISH" : "NEUTRAL";
-  const supporting = evidence.filter((e) => e.direction === want).length;
 
   addCheck("decision.agreement", "Indicator agreement", Math.abs(agreement) >= cfg.minAgreement && want !== "NEUTRAL", `score ${agreement.toFixed(2)} (need ±${cfg.minAgreement})${Math.min(bull, bear) > 0.6 * Math.max(bull, bear) ? " — evidence contradictory" : ""}`);
   addCheck("decision.support", "Supporting evidence", supporting >= cfg.minSupportingEvidence, `${supporting} items agree (need ${cfg.minSupportingEvidence})`);
@@ -470,110 +505,6 @@ function decideFade(x: FadeContext): SignalResult {
   const passed = checks.every((c) => c.passed);
   base.engineDecision = sourceIndependentDecision(checks, want);
   if (passed) base.decision = want === "BULLISH" ? "CALL" : "PUT";
-  return finalize(base, input, warnings);
-}
-
-interface PatternContext extends FadeContext {
-  patterns: PatternHit[];
-  close: number;
-  lowerBand: number | null;
-  upperBand: number | null;
-}
-
-const pname = (p: PatternHit) => p.name.replaceAll("_", " ").toLowerCase();
-
-/**
- * FAST = candlestick-pattern strategy. A CALL/PUT needs a directional pattern on the
- * signal candle AND the right place for it:
- *   - reversal patterns (engulfing, hammer, shooting star, morning/evening star,
- *     tweezers, piercing line, dark cloud) at support/resistance, at a Bollinger band,
- *     or with RSI stretched (≤ 35 / ≥ 65);
- *   - continuation patterns (marubozu, three soldiers/crows) with the EMA trend on
- *     their side, RSI not exhausted and no opposing level right in front of price.
- * Conflicting patterns, or a pattern in the wrong place, give NO_TRADE.
- */
-function decidePattern(x: PatternContext): SignalResult {
-  const { cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, close } = x;
-  const directional = x.patterns.filter((p) => p.direction !== "NEUTRAL");
-  const bullP = directional.filter((p) => p.direction === "BULLISH");
-  const bearP = directional.filter((p) => p.direction === "BEARISH");
-  const conflict = bullP.length > 0 && bearP.length > 0;
-  const want: Direction = conflict ? "NEUTRAL" : bullP.length ? "BULLISH" : bearP.length ? "BEARISH" : "NEUTRAL";
-  const pats = want === "BULLISH" ? bullP : want === "BEARISH" ? bearP : [];
-
-  addCheck(
-    "pattern.found",
-    "Candle pattern",
-    want !== "NEUTRAL",
-    conflict ? `Conflicting patterns (${directional.map(pname).join(", ")})` : pats.length ? pats.map(pname).join(", ") : "No directional candlestick pattern on the signal candle",
-  );
-
-  const zones = buildZones(x.swings, close, cfg.levelMergeAtr * x.atrNow);
-  const { support, resistance } = nearestZones(zones, close);
-  const prox = cfg.levelProximityAtr * x.atrNow;
-  const reversal = pats.find((p) => REVERSAL_PATTERNS.has(p.name));
-  const cont = pats.find((p) => CONTINUATION_PATTERNS.has(p.name));
-  let used: PatternHit | undefined;
-  let setupDetail = "";
-  let setupOk = false;
-  if (want === "BULLISH" || want === "BEARISH") {
-    const up = want === "BULLISH";
-    const atLevel = up ? !!support && lastC.low - support.high <= prox : !!resistance && resistance.low - lastC.high <= prox;
-    const atBand = up ? x.lowerBand !== null && lastC.low <= x.lowerBand : x.upperBand !== null && lastC.high >= x.upperBand;
-    const rsiStretched = up ? rv <= 35 : rv >= 65;
-    const roomAhead = up ? !(resistance && resistance.low - close <= prox) : !(support && close - support.high <= prox);
-    const rsiOk = up ? rv < cfg.rsiOverbought : rv > cfg.rsiOversold;
-    if (reversal && (atLevel || atBand || rsiStretched)) {
-      setupOk = true;
-      used = reversal;
-      const where = [atLevel && (up ? "support" : "resistance"), atBand && (up ? "lower band" : "upper band"), rsiStretched && `RSI ${rv.toFixed(0)}`].filter(Boolean).join(" + ");
-      setupDetail = `${pname(reversal)} at ${where}`;
-    } else if (cont && x.emaDir === want && rsiOk && roomAhead) {
-      setupOk = true;
-      used = cont;
-      setupDetail = `${pname(cont)} with the ${up ? "up" : "down"}-trend, room to the next level`;
-    } else if (reversal) {
-      setupDetail = `${pname(reversal)} is not at ${up ? "support, the lower band or low RSI" : "resistance, the upper band or high RSI"} — no reason to turn here`;
-    } else if (cont) {
-      setupDetail = x.emaDir !== want ? `${pname(cont)} against the EMA trend (${x.emaDir.toLowerCase()})` : !rsiOk ? `${pname(cont)} but RSI exhausted (${rv.toFixed(0)})` : `${pname(cont)} runs straight into ${up ? "resistance" : "support"}`;
-    }
-  }
-  if (want !== "NEUTRAL") addCheck("pattern.setup", "Pattern in the right place", setupOk, setupDetail);
-
-  if (used) {
-    evidence.push({
-      id: "setup.pattern",
-      module: "Candle pattern strategy",
-      label: used.name.replaceAll("_", " "),
-      direction: want,
-      weight: 3,
-      detail: setupDetail,
-      detailUr: PATTERN_UR[used.name],
-    });
-  }
-  if (x.mtfDir !== "NEUTRAL" && want !== "NEUTRAL" && x.mtfDir !== want) warnings.push(`Pattern is against the ${cfg.mtfMinutes}m trend (${x.mtfDir.toLowerCase()})`);
-  warnings.push("FAST pattern strategy is experimental and not yet proven — demo only. The signal candle may still be forming when the app checks.");
-
-  base.metrics = {
-    atrPercentile: round(x.atrPct, 1),
-    lastRangeAtr: round(x.lastRange / x.atrPrev, 3),
-    bodyRatio: round(an.bodyRatio, 3),
-    lastCandleDir: lastC.close > lastC.open ? 1 : lastC.close < lastC.open ? -1 : 0,
-    rsi: round(rv, 2),
-    macdHistogram: x.h,
-    bbPercentB: round(x.pb, 3),
-    emaTrend: x.emaDir,
-    structure: x.ms.state,
-    mtfTrend: x.mtfDir,
-    opposingLevelAtr: null,
-    regime: x.atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : x.emaDir !== "NEUTRAL" && x.emaDir === x.msDir ? "TREND" : x.ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
-  };
-
-  addCheck("timing.window", "Entry window", x.windowOpen, x.windowOpen ? `Act before ${new Date(base.entryWindowEnd!).toISOString()}` : "Entry window already passed — signal expired");
-
-  const passed = checks.every((c) => c.passed);
-  base.engineDecision = sourceIndependentDecision(checks, want);
-  if (passed && want !== "NEUTRAL") base.decision = want === "BULLISH" ? "CALL" : "PUT";
   return finalize(base, input, warnings);
 }
 

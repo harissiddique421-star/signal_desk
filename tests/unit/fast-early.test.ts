@@ -32,7 +32,7 @@ describe("FAST gives the signal one candle early", () => {
   it("returns CALL/PUT for the NEXT candle, before it starts", () => {
     const candles = generateSampleCandles("EUR/USD", now, 400); // includes the forming 09:30 candle
     const r = evaluateSignal({ candles, symbol: "EUR/USD", marketType: "LIVE", symbolSupported: true, source, analysisKind: "LIVE_FEED", now: fastEvaluationTime(now), config: cfg });
-    expect(r.checks.filter((c) => !c.passed && (c.id.startsWith("data.") || c.id === "timing.window"))).toEqual([]);
+    expect(r.decision).not.toBe("NO_TRADE");
     expect(r.signalCandleTime).toBe(minute);
     expect(r.entryWindowStart).toBe(minute + 60_000); // trade candle 09:31
     expect(r.entryWindowStart! - now).toBe(15_000); // 15 s countdown when the signal appears
@@ -43,7 +43,7 @@ describe("FAST gives the signal one candle early", () => {
   it("still works when the feed has not published the forming candle", () => {
     const candles = generateSampleCandles("EUR/USD", now, 400).filter((c) => c.time < minute);
     const r = evaluateSignal({ candles, symbol: "EUR/USD", marketType: "LIVE", symbolSupported: true, source, analysisKind: "LIVE_FEED", now: fastEvaluationTime(now), config: cfg });
-    expect(r.checks.filter((c) => !c.passed && (c.id.startsWith("data.") || c.id === "timing.window"))).toEqual([]);
+    expect(r.decision).not.toBe("NO_TRADE");
     expect(r.entryWindowStart).toBe(minute + 60_000);
   });
 });
