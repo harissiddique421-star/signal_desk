@@ -1,6 +1,6 @@
 import type { RuleConfig } from "../config/rules";
 import { DEFAULT_RULES } from "../config/rules";
-import { atr, bollinger, ema, macd, percentileRank, rsi } from "../indicators";
+import { atr, bollinger, ema, macd, percentileRank, qqe, rsi } from "../indicators";
 import type { AnalysisKind, Candle, Check, Decision, Direction, Evidence, MarketType, SignalMetrics, SignalResult } from "../types";
 import { checkFreshness, closedCandlesOnly, inspectSeries } from "../validation/candles";
 import { anatomy, detectPatterns } from "../analysis/candles";
@@ -46,6 +46,7 @@ const UR = {
 export function evaluateSignal(input: EngineInput): SignalResult {
   const cfg = input.config ?? DEFAULT_RULES;
   const fastMode = cfg.version === "rules-fast-confluence-experimental";
+  const qqeMode = cfg.strategy === "QQE_SR";
   const tfMs = cfg.timeframeSeconds * 1000;
   const checks: Check[] = [];
   const reasons: string[] = [];
@@ -144,7 +145,7 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   // If the feed is exactly ONE candle behind, FAST uses the previous closed candle and
   // anchors the trade to the current minute. A feed further behind still fails closed.
   const fastLagged =
-    fastMode &&
+    (fastMode || qqeMode) &&
     !fresh.fresh &&
     closed.length > 0 &&
     closed[closed.length - 1].time === fresh.expectedLastOpen - tfMs &&
@@ -201,7 +202,7 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   const atrSample = (a.slice(-cfg.volatilityWindow).filter((x) => x !== null) as number[]);
   const atrPct = percentileRank(atrSample, atrNow);
   const lastRange = lastC.high - lastC.low;
-  if (!fadeMode && !fastMode) {
+  if (!fadeMode && !fastMode && !qqeMode) {
     // TREND_V1 avoids quiet markets and shock candles. FADE_V2 trades exactly the
     // large candles these filters remove, so it uses its own setup checks instead.
     addCheck(
@@ -322,6 +323,9 @@ export function evaluateSignal(input: EngineInput): SignalResult {
   base.agreementScore = round(agreement, 3);
 
   // ---- 8. Direction gates -----------------------------------------------------
+  if (qqeMode) {
+    return decideQqe({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen, closed, closes });
+  }
   if (fadeMode) {
     return decideFade({ cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, pb, h, atrPct, lastRange, atrPrev, atrNow, emaDir, msDir, mtfDir, ms, swings, windowOpen });
   }
@@ -505,6 +509,101 @@ function decideFade(x: FadeContext): SignalResult {
   const passed = checks.every((c) => c.passed);
   base.engineDecision = sourceIndependentDecision(checks, want);
   if (passed) base.decision = want === "BULLISH" ? "CALL" : "PUT";
+  return finalize(base, input, warnings);
+}
+
+interface QqeContext extends FadeContext {
+  closed: Candle[];
+  closes: number[];
+}
+
+/**
+ * QQE_SR — three entries on the CLOSED signal candle (non-repainting), any one is enough:
+ *   1. QQE flip: smoothed RSI crosses its QQE trailing line (momentum turns).
+ *   2. S/R rejection: the candle's wick pokes into a support (resistance) zone and is
+ *      rejected — long wick, close back on the right side of the zone.
+ *   3. Momentum run: `momentumCandles` same-colour candles with solid bodies, in the
+ *      same direction as the QQE phase.
+ * Entries pointing opposite ways cancel out (NO_TRADE). Built from public indicator
+ * definitions; not validated — demo only.
+ */
+function decideQqe(x: QqeContext): SignalResult {
+  const { cfg, base, input, warnings, checks, evidence, addCheck, lastC, an, rv, closed, closes } = x;
+  const i = closes.length - 1;
+  const q = qqe(closes, cfg.qqeRsiPeriod, cfg.qqeSmoothing, cfg.qqeFactor);
+  const m = q.rsiMa[i];
+  const mp = q.rsiMa[i - 1];
+  const tr = q.trail[i];
+  const trp = q.trail[i - 1];
+  const phase = q.trend[i];
+  if (m === null || mp === null || tr === null || trp === null || phase === null) {
+    addCheck("data.warmup", "Indicator warm-up", false, "Not enough history for QQE");
+    return finalize(base, input, warnings);
+  }
+
+  const votes: { dir: Direction; id: string; label: string; detail: string; detailUr: string }[] = [];
+
+  // 1. QQE flip
+  if (mp <= trp && m > tr) votes.push({ dir: "BULLISH", id: "qqe.flip", label: "QQE flip up", detail: `RSI-MA ${m.toFixed(1)} crossed above QQE line ${tr.toFixed(1)}`, detailUr: "QQE line upar ki taraf palti — momentum upar mur gaya." });
+  if (mp >= trp && m < tr) votes.push({ dir: "BEARISH", id: "qqe.flip", label: "QQE flip down", detail: `RSI-MA ${m.toFixed(1)} crossed below QQE line ${tr.toFixed(1)}`, detailUr: "QQE line neeche ki taraf palti — momentum neeche mur gaya." });
+
+  // 2. Support / resistance rejection
+  const zones = buildZones(x.swings, lastC.close, cfg.levelMergeAtr * x.atrNow);
+  const { support, resistance } = nearestZones(zones, lastC.close);
+  const prox = cfg.levelProximityAtr * x.atrNow;
+  if (support && lastC.low <= support.high + prox && lastC.close > support.high && an.lowerWickRatio >= cfg.rejectionWickRatio) {
+    votes.push({ dir: "BULLISH", id: "sr.reject", label: "Support rejection", detail: `Wick into support ${fmt(support.low)}–${fmt(support.high)} (${support.touches} touches), lower wick ${(an.lowerWickRatio * 100).toFixed(0)}%`, detailUr: "Price support tak gayi aur lambi wick ke saath wapas upar band hui." });
+  }
+  if (resistance && lastC.high >= resistance.low - prox && lastC.close < resistance.low && an.upperWickRatio >= cfg.rejectionWickRatio) {
+    votes.push({ dir: "BEARISH", id: "sr.reject", label: "Resistance rejection", detail: `Wick into resistance ${fmt(resistance.low)}–${fmt(resistance.high)} (${resistance.touches} touches), upper wick ${(an.upperWickRatio * 100).toFixed(0)}%`, detailUr: "Price resistance tak gayi aur lambi wick ke saath wapas neeche band hui." });
+  }
+
+  // 3. Momentum run in the QQE phase
+  const run = closed.slice(-cfg.momentumCandles);
+  const solid = (c: Candle) => {
+    const r = c.high - c.low;
+    return r > 0 && Math.abs(c.close - c.open) / r >= 0.5;
+  };
+  if (run.length === cfg.momentumCandles && run.every((c) => c.close > c.open && solid(c)) && phase === 1 && m > 50) {
+    votes.push({ dir: "BULLISH", id: "momentum.run", label: `${cfg.momentumCandles} green candles + QQE up`, detail: `${cfg.momentumCandles} solid up candles, RSI-MA ${m.toFixed(1)}`, detailUr: `Lagatar ${cfg.momentumCandles} mazboot hari candles aur QQE upar — rujhan jaari.` });
+  }
+  if (run.length === cfg.momentumCandles && run.every((c) => c.close < c.open && solid(c)) && phase === -1 && m < 50) {
+    votes.push({ dir: "BEARISH", id: "momentum.run", label: `${cfg.momentumCandles} red candles + QQE down`, detail: `${cfg.momentumCandles} solid down candles, RSI-MA ${m.toFixed(1)}`, detailUr: `Lagatar ${cfg.momentumCandles} mazboot laal candles aur QQE neeche — rujhan jaari.` });
+  }
+
+  const dirs = new Set(votes.map((v) => v.dir));
+  const want: Direction = dirs.size === 1 ? votes[0].dir : "NEUTRAL";
+  addCheck(
+    "qqe.entry",
+    "QQE / S/R entry",
+    votes.length > 0,
+    votes.length ? votes.map((v) => v.label).join(", ") : `No entry: QQE ${phase === 1 ? "up" : "down"}-phase without a flip, no level rejection, no ${cfg.momentumCandles}-candle run`,
+  );
+  if (votes.length) addCheck("qqe.agree", "Entries agree", dirs.size === 1, dirs.size === 1 ? `${votes.length} entr${votes.length > 1 ? "ies" : "y"} ${want.toLowerCase()}` : "Entries point opposite ways");
+  for (const v of votes) evidence.push({ id: `setup.${v.id}`, module: "QQE + S/R", label: v.label, direction: v.dir, weight: 3, detail: v.detail, detailUr: v.detailUr });
+  if (want === "BULLISH" && rv >= cfg.rsiOverbought) warnings.push(`RSI ${rv.toFixed(0)} already overbought`);
+  if (want === "BEARISH" && rv <= cfg.rsiOversold) warnings.push(`RSI ${rv.toFixed(0)} already oversold`);
+  warnings.push("QQE + S/R is experimental (public QQE/pivot rules, not validated) — demo only.");
+
+  base.metrics = {
+    atrPercentile: round(x.atrPct, 1),
+    lastRangeAtr: round(x.lastRange / x.atrPrev, 3),
+    bodyRatio: round(an.bodyRatio, 3),
+    lastCandleDir: lastC.close > lastC.open ? 1 : lastC.close < lastC.open ? -1 : 0,
+    rsi: round(rv, 2),
+    macdHistogram: x.h,
+    bbPercentB: round(x.pb, 3),
+    emaTrend: x.emaDir,
+    structure: x.ms.state,
+    mtfTrend: x.mtfDir,
+    opposingLevelAtr: null,
+    regime: x.atrPct > cfg.maxAtrPercentile ? "HIGH_VOL" : x.emaDir !== "NEUTRAL" && x.emaDir === x.msDir ? "TREND" : x.ms.state === "RANGE" ? "RANGE" : "UNCERTAIN",
+  };
+  addCheck("timing.window", "Entry window", x.windowOpen, x.windowOpen ? `Act before ${new Date(base.entryWindowEnd!).toISOString()}` : "Entry window already passed — signal expired");
+
+  const passed = checks.every((c) => c.passed);
+  base.engineDecision = sourceIndependentDecision(checks, want);
+  if (passed && want !== "NEUTRAL") base.decision = want === "BULLISH" ? "CALL" : "PUT";
   return finalize(base, input, warnings);
 }
 

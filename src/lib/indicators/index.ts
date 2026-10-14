@@ -166,3 +166,68 @@ export function last<T>(arr: T[]): T | undefined {
 function assertPeriod(p: number) {
   if (!Number.isInteger(p) || p < 1) throw new Error(`Invalid period: ${p}`);
 }
+
+export interface QqeResult {
+  /** RSI smoothed with an EMA */
+  rsiMa: Series;
+  /** QQE trailing line (long band in an up-phase, short band in a down-phase) */
+  trail: Series;
+  /** 1 = up-phase, -1 = down-phase */
+  trend: Series;
+}
+
+/**
+ * QQE (Quantitative Qualitative Estimation), public textbook definition:
+ * RsiMa = EMA(RSI, smoothing); dar = EMA(EMA(|ΔRsiMa|, 2·rsiPeriod−1), 2·rsiPeriod−1) × factor;
+ * a trailing line follows RsiMa at ±dar and flips when RsiMa crosses it.
+ */
+export function qqe(values: number[], rsiPeriod = 14, smoothing = 5, factor = 4.236): QqeResult {
+  const n = values.length;
+  const r = rsi(values, rsiPeriod);
+  const rsiMa = emaOfDefined(r, smoothing);
+  const delta: Series = rsiMa.map((v, i) => (v === null || i === 0 || rsiMa[i - 1] === null ? null : Math.abs(v - (rsiMa[i - 1] as number))));
+  const wilders = 2 * rsiPeriod - 1;
+  const dar = emaOfDefined(emaOfDefined(delta, wilders), wilders).map((v) => (v === null ? null : v * factor));
+  const trail: Series = new Array(n).fill(null);
+  const trend: Series = new Array(n).fill(null);
+  let longband = 0;
+  let shortband = 0;
+  let t = 0;
+  let started = false;
+  for (let i = 1; i < n; i++) {
+    const m = rsiMa[i];
+    const mp = rsiMa[i - 1];
+    const d = dar[i];
+    if (m === null || mp === null || d === null) continue;
+    const newLong = m - d;
+    const newShort = m + d;
+    if (!started) {
+      longband = newLong;
+      shortband = newShort;
+      t = m >= 50 ? 1 : -1;
+      started = true;
+    } else {
+      const prevLong = longband;
+      const prevShort = shortband;
+      longband = mp > prevLong && m > prevLong ? Math.max(prevLong, newLong) : newLong;
+      shortband = mp < prevShort && m < prevShort ? Math.min(prevShort, newShort) : newShort;
+      if (mp <= prevShort && m > prevShort) t = 1;
+      else if (mp >= prevLong && m < prevLong) t = -1;
+    }
+    trend[i] = t;
+    trail[i] = t === 1 ? longband : shortband;
+  }
+  return { rsiMa, trail, trend };
+}
+
+/** EMA over a series that starts with nulls (warm-up of an earlier indicator). */
+function emaOfDefined(values: Series, period: number): Series {
+  const out: Series = new Array(values.length).fill(null);
+  const first = values.findIndex((v) => v !== null);
+  if (first < 0) return out;
+  const tail = values.slice(first);
+  if (tail.some((v) => v === null)) return out;
+  const e = ema(tail as number[], period);
+  e.forEach((v, i) => (out[first + i] = v));
+  return out;
+}
