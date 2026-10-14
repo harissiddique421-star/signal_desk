@@ -172,11 +172,21 @@ The procedure keeps choosing nearly the same rule (%B 1.0 → 1.1 from Sep 2019)
 
 **Still true:** no tested configuration approaches 90 %. The best robust results are 55–57 % with immediate entry on < 1 % of minutes.
 
+## 11. Re-check on recent data (live provider)
+
+The biggest open limitation (§7.3) is that every result above comes from 2018–2020. The **Recent data test** re-runs the shipped rules, unchanged, on recent candles from Twelve Data, the feed the app uses live:
+
+- `scripts/research/fetch-twelvedata.ts` downloads up to `--days` (default 60) of 1-minute candles for the same six pairs, paging back 5,000 candles per call within the free plan's per-minute limit. The candle still forming at fetch time is dropped; nothing is filled in. If the plan holds less history than requested, the covered period is recorded instead of guessed.
+- `scripts/research/recent-test.ts` runs v2 through `runBacktest` (same engine and outcome rule as §2) and the v3 shadow model with the same data gate, then writes `src/lib/research/recent.json`: on-time and one-candle-late win rates with 95 % Wilson intervals, by pair and session, a two-proportion test against the 2020 TEST result and v3 against v2, and a verdict (EDGE / UNPROVEN / LOSING; no verdict under 200 decided trades).
+- `.github/workflows/recent-test.yml` runs both (manually from the Actions tab, and every Saturday after the FX week closes) using the repository secret `TWELVEDATA_API_KEY`, and commits `recent.json`. The Backtest tab shows it above the historical table.
+
+Nothing is tuned on this data. It answers one question: does the edge measured in 2020 still exist on today's feed? If v2 shows LOSING, stop using it; if UNPROVEN, treat it as unproven. The pipeline was checked offline against a mock of the documented API shape; the first real run is the first contact with the live API.
+
 ## 7. Limitations
 
 1. OANDA mid candles ≠ Twelve Data ≠ Quotex quotes. Reversal effects at 1 minute are sensitive to how a feed builds its candles; re-check on the live feed before using real money.
 2. Entry latency is only bounded (0 s vs 60 s), not measured; 1-minute data cannot do better. Tick data would.
-3. 2018–2020 only; market microstructure changes.
+3. 2018–2020 only; market microstructure changes. The Recent data test (§11) re-checks v2 and v3 on recent live-feed candles.
 4. No news filter (no verified calendar provider) — v2 trades large candles, which news often causes.
 5. No OTC data exists here; v2 says nothing about OTC.
 6. Your own past signals could not be analysed (not reachable from this environment).

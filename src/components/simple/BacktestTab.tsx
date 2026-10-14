@@ -7,6 +7,7 @@ import { api } from "@/lib/client/api";
 import { fmtPct, fmtTime } from "@/lib/client/format";
 import { EquityLine } from "../Performance";
 import { HistoryPanel } from "./HistoryPanel";
+import { RecentPanel } from "./RecentPanel";
 
 const PERIODS = [
   { label: "6 ghante", count: 360 },
@@ -44,6 +45,8 @@ export function BacktestTab({ provider, symbol, mode, payout, live }: { provider
           {symbol ?? "Pair"} ke pichle data par yahi rules har minute chala kar dekhta hai ke kitne signal sahi hote. Har qadam par sirf us waqt tak ka data use hota hai.
         </p>
       </div>
+
+      <RecentPanel />
 
       <HistoryPanel />
 

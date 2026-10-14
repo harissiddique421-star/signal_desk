@@ -91,6 +91,14 @@ export function SignalApp() {
     return usable.find((p) => p.verified) ?? usable[0] ?? null;
   }, [health]);
   const live = !!provider?.verified;
+  // Say WHY live data is off, so a missing key is not mistaken for a closed market.
+  const liveOffReason = useMemo(() => {
+    const td = health?.providers.find((p) => p.id === "twelvedata");
+    if (!td) return null;
+    if (td.status === "NOT_CONFIGURED") return "Wajah: server par Twelve Data ki API key (TWELVEDATA_API_KEY) set nahin. Market khula ho tab bhi isi liye sample dikh raha hai. Vercel → Settings → Environment Variables mein key add karke Redeploy karein.";
+    if (td.status === "DEGRADED") return `Wajah: Twelve Data se data nahin aa raha (${td.detail}).`;
+    return null;
+  }, [health]);
 
   // ---- symbols -----------------------------------------------------------------
   useEffect(() => {
@@ -359,6 +367,7 @@ export function SignalApp() {
           {!live && provider && (
             <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">
               Live data band hai — yeh sirf sample (nakli) data hai, is se signal nahin aayega.
+              {liveOffReason && <span className="mt-1 block text-xs" data-testid="live-off-reason">{liveOffReason}</span>}
             </p>
           )}
 

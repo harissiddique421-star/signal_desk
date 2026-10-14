@@ -1,0 +1,80 @@
+# Re-checks the shipped v2 rules (and the v3 shadow model) on recent Twelve Data
+# candles and commits the result to src/lib/research/recent.json, which the
+# Backtest tab shows. Needs the repository secret TWELVEDATA_API_KEY
+# (Settings → Secrets and variables → Actions → New repository secret).
+#
+# Run it by hand from the Actions tab ("Recent data test" → Run workflow),
+# or let it run every Saturday after the FX week has closed.
+name: Recent data test
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days of history to test (the free plan may hold less)"
+        default: "60"
+        required: true
+  schedule:
+    - cron: "17 3 * * 6" # Saturday 03:17 UTC
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recent-test
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Download recent 1-minute candles
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        run: npx tsx scripts/research/fetch-twelvedata.ts --out data-recent --days "${{ github.event.inputs.days || '60' }}" --rpm 7
+
+      - name: Run v2 and v3 on them
+        run: npx tsx scripts/research/recent-test.ts --data data-recent --out src/lib/research/recent.json
+
+      - name: Summary
+        run: |
+          node -e '
+            const r = require("./src/lib/research/recent.json");
+            const f = (s) => s.winRate === null ? "—" : `${(s.winRate*100).toFixed(1)}% (${(s.ci95[0]*100).toFixed(1)}–${(s.ci95[1]*100).toFixed(1)}%), n=${s.n}`;
+            const lines = [
+              `## Recent data test`,
+              `Period: ${r.period?.from} → ${r.period?.to} · break-even ${(r.breakEven*100).toFixed(2)}%`,
+              ``,
+              `| Version | On time | One candle late | Verdict |`,
+              `|---|---|---|---|`,
+              `| v2 Fade | ${f(r.v2.onTime)} | ${f(r.v2.late)} | ${r.v2.verdict.code} |`,
+              `| v3 ML (shadow) | ${f(r.v3.onTime)} | ${f(r.v3.late)} | ${r.v3.verdict.code} |`,
+            ];
+            console.log(lines.join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recent-test
+          path: |
+            src/lib/research/recent.json
+            data-recent/fetch-meta.json
+
+      - name: Commit the result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/research/recent.json
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          git commit -m "Recent data test: update recent.json"
+          git push

@@ -1,0 +1,13 @@
+{
+ "generatedAt": null,
+ "source": "Twelve Data 1-minute candles (the feed the live app uses)",
+ "period": null,
+ "payout": 0.85,
+ "breakEven": 0.5405,
+ "opportunities": 0,
+ "minTradesForVerdict": 200,
+ "outcomeRule": "Same as the app: entry = open of the candle after the signal candle, expiry = its close; late = one full candle later. Ties refund and are excluded.",
+ "data": {},
+ "v2": null,
+ "v3": null
+}

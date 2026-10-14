@@ -189,6 +189,12 @@ Without any keys the app runs fully, shows **Live data unavailable**, and lets y
 3. Deploy. Then add `https://<your-domain>/auth/callback` to Supabase's redirect URLs.
 4. On Android Chrome, open the HTTPS site and choose **Install app**.
 
+**"Live data band hai" while the market is open** means the server has no `TWELVEDATA_API_KEY` (the signal screen now says so). Add it in Vercel and **Redeploy** — environment changes only apply to new deployments.
+
+### Recent data test (GitHub Actions)
+
+GitHub → repo → Settings → Secrets and variables → Actions → add `TWELVEDATA_API_KEY`. Then Actions → **Recent data test** → Run workflow. It re-tests v2 and v3 on recent Twelve Data candles, commits `src/lib/research/recent.json`, and the Backtest tab shows the result. It also runs every Saturday. See docs/RESEARCH.md §11.
+
 ## Security
 
 - **Input validation** — every route parses its input with strict zod schemas (unknown fields rejected, symbols and providers pattern-checked, body size capped).

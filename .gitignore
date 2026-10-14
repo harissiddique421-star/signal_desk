@@ -51,3 +51,4 @@ next-env.d.ts
 /research-out/
 /data/
 __pycache__/
+/data-recent/
